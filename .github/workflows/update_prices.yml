@@ -37,5 +37,6 @@ jobs:
           git add prezzi_live.json
           git diff --staged --quiet && echo "Nessuna variazione" || (
             git commit -m "prezzi: aggiornamento automatico $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin master
             git push
           )
