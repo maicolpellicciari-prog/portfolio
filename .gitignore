@@ -1,0 +1,26 @@
+# File Office e temporanei
+*.xlsx
+*.xls
+*.csv
+*.pdf
+*.~lock.*
+~$*
+
+# File vecchi / non necessari
+aggiorna_dashboard.py
+aggiorna_dashboard_martina.py
+app_server.py
+avvia.bat
+dashboard_aggiornata.html
+dashboard_martina.html
+portfolio*.xlsx
+portfolio*.csv
+portfolio*.json
+storico_*.json
+martina report*.xlsx
+note export.txt
+update_dashboard.sh
+export/
+
+# Claude
+.claude/

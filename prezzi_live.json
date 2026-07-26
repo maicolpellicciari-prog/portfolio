@@ -1,0 +1,112 @@
+{
+  "_eurusd": 1.1375,
+  "_updated": "2026-07-26T22:07:32",
+  "NL0010273215": {
+    "raw": 1563.0,
+    "currency": "EUR"
+  },
+  "IT0001031084": {
+    "raw": 65.25,
+    "currency": "EUR"
+  },
+  "US0846707026": {
+    "raw": 494.93,
+    "currency": "USD"
+  },
+  "US67066G1040": {
+    "raw": 206.84,
+    "currency": "USD"
+  },
+  "US70450Y1038": {
+    "raw": 56.15,
+    "currency": "USD"
+  },
+  "IT0004176001": {
+    "raw": 126.9,
+    "currency": "EUR"
+  },
+  "IT0005631590": {
+    "raw": 98.4,
+    "currency": "EUR"
+  },
+  "LU1437017350": {
+    "raw": 98.12,
+    "currency": "EUR"
+  },
+  "LU1841731745": {
+    "raw": 18.06,
+    "currency": "EUR"
+  },
+  "LU1681043599": {
+    "raw": 681.68,
+    "currency": "EUR"
+  },
+  "IE00B579F325": {
+    "raw": 344.25,
+    "currency": "EUR"
+  },
+  "IE00BYZK4552": {
+    "raw": 17.346,
+    "currency": "EUR"
+  },
+  "JE00B1VS3333": {
+    "raw": 47.015,
+    "currency": "EUR"
+  },
+  "IE00BM67HK77": {
+    "raw": 53.18,
+    "currency": "EUR"
+  },
+  "IE00BM67HV82": {
+    "raw": 76.75,
+    "currency": "EUR"
+  },
+  "BTC": {
+    "raw": 64608.0703,
+    "currency": "USD"
+  },
+  "IT0000380664": {
+    "raw": 47.2444,
+    "currency": "EUR"
+  },
+  "FR0000121667": {
+    "raw": 163.5,
+    "currency": "EUR"
+  },
+  "IE00B4L5Y983": {
+    "raw": 125.28,
+    "currency": "EUR"
+  },
+  "IE00BJ5JPG56": {
+    "raw": 4.828,
+    "currency": "EUR"
+  },
+  "IE00B4L5YC18": {
+    "raw": 53.96,
+    "currency": "EUR"
+  },
+  "LU0256013359": {
+    "raw": 199.56,
+    "currency": "EUR"
+  },
+  "IT0005367757": {
+    "raw": 16.01,
+    "currency": "EUR"
+  },
+  "LU1529957257": {
+    "raw": 175.29,
+    "currency": "EUR"
+  },
+  "IT0005599078": {
+    "raw": 5.15,
+    "currency": "EUR"
+  },
+  "LU0552385295": {
+    "raw": 158.06,
+    "currency": "USD"
+  },
+  "IT0005635583": {
+    "raw": 95.68,
+    "currency": "EUR"
+  }
+}
