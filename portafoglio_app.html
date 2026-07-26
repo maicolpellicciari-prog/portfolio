@@ -429,14 +429,15 @@ const INITIAL_DATA = {
   transactions:[]
 };
 
-// INITIAL_DATA è sempre la fonte di verità per holdings (qty, avg_price, struttura).
-// localStorage salva SOLO prezzi di mercato + metadati (storico, cash, pensione, log).
-// Così le modifiche a INITIAL_DATA nell'HTML vengono sempre recepite al ricaricamento.
-const PRICES_KEY = 'portfolio-prices-v2';
-const META_KEY   = 'portfolio-meta-v2';
+// INITIAL_DATA è la base di partenza per struttura e valori di default.
+// localStorage salva prezzi, holdings modificati e metadati.
+// Le modifiche da UI (qty, avg_price, nuove posizioni) persistono nel localStorage.
+const PRICES_KEY   = 'portfolio-prices-v2';
+const META_KEY     = 'portfolio-meta-v2';
+const HOLDINGS_KEY = 'portfolio-holdings-v1';
 
 function loadState() {
-  // 1. Holdings sempre da INITIAL_DATA
+  // 1. Base sempre da INITIAL_DATA
   const s = JSON.parse(JSON.stringify(INITIAL_DATA));
   // 2. Applica prezzi salvati
   try {
@@ -449,7 +450,27 @@ function loadState() {
     if (prices._eurusd) s.eurusd = prices._eurusd;
     if (prices._updated) s.last_updated = prices._updated;
   } catch(e) {}
-  // 3. Applica metadati (storico, transazioni, cassa, pensioni)
+  // 3. Applica modifiche holdings (qty, avg_price) e posizioni aggiunte
+  try {
+    const hData = JSON.parse(localStorage.getItem(HOLDINGS_KEY) || '{}');
+    ['maicol','martina'].forEach(who => {
+      if (!hData[who]) return;
+      // Applica overrides qty/avg_price alle posizioni esistenti
+      if (hData[who].overrides) {
+        s[who].holdings.forEach(h => {
+          const ov = hData[who].overrides[h.isin];
+          if (ov) { if (ov.qty != null) h.qty = ov.qty; if (ov.avg_price != null) h.avg_price = ov.avg_price; }
+        });
+      }
+      // Aggiungi posizioni nuove (non presenti in INITIAL_DATA)
+      if (hData[who].added) {
+        hData[who].added.forEach(ah => {
+          if (!s[who].holdings.find(h => h.isin === ah.isin)) s[who].holdings.push(ah);
+        });
+      }
+    });
+  } catch(e) {}
+  // 4. Applica metadati (storico, transazioni, cassa, pensioni)
   try {
     const meta = JSON.parse(localStorage.getItem(META_KEY) || '{}');
     if (meta.transactions)    s.transactions            = meta.transactions;
@@ -466,12 +487,28 @@ function saveState() {
   const now = new Date().toISOString().slice(0,10);
   state.last_updated = now;
   document.getElementById('lastUpdatedLabel').textContent = 'Aggiornato: ' + now;
-  // Salva solo prezzi
+  // Salva prezzi
   const prices = { _eurusd: state.eurusd, _updated: now };
   ['maicol','martina'].forEach(who => {
     state[who].holdings.forEach(h => { if (h.market_price != null) prices[h.isin] = h.market_price; });
   });
   localStorage.setItem(PRICES_KEY, JSON.stringify(prices));
+  // Salva holdings modificati rispetto a INITIAL_DATA
+  const initIsins = { maicol: new Set(), martina: new Set() };
+  ['maicol','martina'].forEach(who => (INITIAL_DATA[who].holdings||[]).forEach(h => initIsins[who].add(h.isin)));
+  const hData = { maicol: { overrides:{}, added:[] }, martina: { overrides:{}, added:[] } };
+  ['maicol','martina'].forEach(who => {
+    state[who].holdings.forEach(h => {
+      if (initIsins[who].has(h.isin)) {
+        const orig = INITIAL_DATA[who].holdings.find(ih => ih.isin === h.isin);
+        if (orig && (orig.qty !== h.qty || orig.avg_price !== h.avg_price))
+          hData[who].overrides[h.isin] = { qty: h.qty, avg_price: h.avg_price };
+      } else {
+        hData[who].added.push(h);
+      }
+    });
+  });
+  localStorage.setItem(HOLDINGS_KEY, JSON.stringify(hData));
   // Salva metadati
   const meta = {
     transactions:    state.transactions    || [],
@@ -485,10 +522,11 @@ function saveState() {
 }
 
 function resetState() {
-  if (!confirm('Ripristinare i dati originali? Prezzi e metadati salvati andranno persi.')) return;
+  if (!confirm('Ripristinare i dati originali? Tutte le modifiche (qty, PMC, posizioni aggiunte, prezzi) andranno perse.')) return;
   localStorage.removeItem(PRICES_KEY);
   localStorage.removeItem(META_KEY);
-  localStorage.removeItem('portfolio-manager-v1'); // pulizia chiave vecchia
+  localStorage.removeItem(HOLDINGS_KEY);
+  localStorage.removeItem('portfolio-manager-v1');
   state = JSON.parse(JSON.stringify(INITIAL_DATA));
   renderAll();
   toast('Dati ripristinati');
