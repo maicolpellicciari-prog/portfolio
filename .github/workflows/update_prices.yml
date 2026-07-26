@@ -1,0 +1,40 @@
+name: Aggiorna prezzi portafoglio
+
+on:
+  schedule:
+    # Ogni giorno lun-ven alle 19:30 UTC = 21:30 ora italiana (dopo chiusura mercati USA)
+    - cron: '30 19 * * 1-5'
+  workflow_dispatch:
+    # Permette esecuzione manuale dal sito GitHub (utile per test o aggiornamenti extra)
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # necessario per committare prezzi_live.json
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Aggiorna prezzi
+        run: python aggiorna_prezzi.py
+
+      - name: Commit e push prezzi_live.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add prezzi_live.json
+          git diff --staged --quiet && echo "Nessuna variazione" || (
+            git commit -m "prezzi: aggiornamento automatico $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          )
