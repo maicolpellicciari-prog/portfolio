@@ -1,17 +1,15 @@
 name: Aggiorna prezzi portafoglio
 
-on:
+"on":
   schedule:
-    # Ogni giorno lun-ven alle 19:30 UTC = 21:30 ora italiana (dopo chiusura mercati USA)
     - cron: '30 19 * * 1-5'
   workflow_dispatch:
-    # Permette esecuzione manuale dal sito GitHub (utile per test o aggiornamenti extra)
 
 jobs:
   update-prices:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # necessario per committare prezzi_live.json
+      contents: write
 
     steps:
       - name: Checkout repo
