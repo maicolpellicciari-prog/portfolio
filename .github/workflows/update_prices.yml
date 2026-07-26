@@ -1,5 +1,6 @@
 name: Aggiorna prezzi portafoglio
 
+# v2
 on:
   schedule:
     # Ogni giorno lun-ven alle 19:30 UTC = 21:30 ora italiana (dopo chiusura mercati USA)
