@@ -34,9 +34,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin master
+          # Salva il file aggiornato dallo script Python
+          cp prezzi_live.json /tmp/prezzi_live_new.json
+          # Sincronizza forzatamente con il remote (evita conflitti fetch first)
+          git fetch origin master
+          git reset --hard origin/master
+          # Ripristina il file aggiornato
+          cp /tmp/prezzi_live_new.json prezzi_live.json
           git add prezzi_live.json
-          git diff --staged --quiet && echo "Nessuna variazione" || (
+          if git diff --staged --quiet; then
+            echo "Nessuna variazione nei prezzi"
+          else
             git commit -m "prezzi: aggiornamento automatico $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push origin master
-          )
+          fi
