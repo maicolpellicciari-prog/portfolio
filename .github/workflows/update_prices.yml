@@ -34,9 +34,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin master
           git add prezzi_live.json
           git diff --staged --quiet && echo "Nessuna variazione" || (
             git commit -m "prezzi: aggiornamento automatico $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git pull --rebase origin master
-            git push
+            git push origin master
           )
