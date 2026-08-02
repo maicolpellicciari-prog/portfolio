@@ -41,7 +41,7 @@ ISIN_MAP = {
     'US70450Y1038': ('PYPL',             'USD'),  # PayPal
     'IT0004176001': ('PRY.MI',           'EUR'),  # Prysmian (Borsa Italiana)
     'IT0005631590': (None,               'EUR'),  # BTP 3.65% 2035  → scraper BI
-    'LU1437017350': ('AEME.MI',          'EUR'),  # ETF EM Amundi (Borsa Italiana)
+    'LU1437017350': ('AEME.PA',          'EUR'),  # ETF EM Amundi (Euronext Paris — AEME.MI errato su Yahoo)
     'LU1841731745': ('LCCN.MI',          'EUR'),  # ETF China Amundi (LCCN su Borsa Italiana)
     'LU1681043599': ('CW8.MI',           'EUR'),  # ETF World CW8
     'IE00B579F325': ('SGLD.MI',          'EUR'),  # Gold Invesco (Borsa Italiana)
