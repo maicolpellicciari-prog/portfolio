@@ -1,100 +1,100 @@
 {
-  "_eurusd": 1.1468,
-  "_updated": "2026-09-16T22:15:03",
+  "_eurusd": 1.148,
+  "_updated": "2026-09-17T22:19:15",
   "NL0010273215": {
-    "raw": 1396.2,
+    "raw": 1418.0,
     "currency": "EUR"
   },
   "IT0001031084": {
-    "raw": 65.0,
+    "raw": 66.0,
     "currency": "EUR"
   },
   "US0846707026": {
-    "raw": 519.8,
+    "raw": 509.2,
     "currency": "USD"
   },
   "US67066G1040": {
-    "raw": 213.9,
+    "raw": 219.34,
     "currency": "USD"
   },
   "US70450Y1038": {
-    "raw": 52.71,
+    "raw": 52.94,
     "currency": "USD"
   },
   "IT0004176001": {
-    "raw": 122.2,
+    "raw": 121.65,
     "currency": "EUR"
   },
   "IT0005631590": {
-    "raw": 95.66,
+    "raw": 95.86,
     "currency": "EUR"
   },
   "LU1437017350": {
-    "raw": 100.88,
+    "raw": 102.07,
     "currency": "EUR"
   },
   "LU1841731745": {
-    "raw": 17.54,
+    "raw": 17.652,
     "currency": "EUR"
   },
   "LU1681043599": {
-    "raw": 687.48,
+    "raw": 692.62,
     "currency": "EUR"
   },
   "IE00B579F325": {
-    "raw": 362.6,
+    "raw": 365.43,
     "currency": "EUR"
   },
   "IE00BYZK4552": {
-    "raw": 18.01,
+    "raw": 18.238,
     "currency": "EUR"
   },
   "JE00B1VS3333": {
-    "raw": 50.83,
+    "raw": 52.07,
     "currency": "EUR"
   },
   "IE00BM67HK77": {
-    "raw": 53.51,
+    "raw": 53.85,
     "currency": "EUR"
   },
   "IE00BM67HV82": {
-    "raw": 73.24,
+    "raw": 73.48,
     "currency": "EUR"
   },
   "BTC": {
-    "raw": 75830.1016,
+    "raw": 76209.4922,
     "currency": "USD"
   },
   "IT0000380664": {
-    "raw": 46.9067,
+    "raw": 46.7568,
     "currency": "EUR"
   },
   "FR0000121667": {
-    "raw": 145.1,
+    "raw": 141.45,
     "currency": "EUR"
   },
   "IE00B4L5Y983": {
-    "raw": 126.45,
+    "raw": 127.41,
     "currency": "EUR"
   },
   "IE00BJ5JPG56": {
-    "raw": 4.701,
+    "raw": 4.734,
     "currency": "EUR"
   },
   "IE00B4L5YC18": {
-    "raw": 55.45,
+    "raw": 56.18,
     "currency": "EUR"
   },
   "LU0256013359": {
-    "raw": 198.0,
+    "raw": 197.68,
     "currency": "EUR"
   },
   "IT0005367757": {
-    "raw": 16.04,
+    "raw": 16.05,
     "currency": "EUR"
   },
   "LU1529957257": {
-    "raw": 176.82,
+    "raw": 176.06,
     "currency": "EUR"
   },
   "IT0005599078": {
@@ -102,11 +102,11 @@
     "currency": "EUR"
   },
   "LU0552385295": {
-    "raw": 164.44,
+    "raw": 164.69,
     "currency": "USD"
   },
   "IT0005635583": {
-    "raw": 92.38,
+    "raw": 92.62,
     "currency": "EUR"
   }
 }
