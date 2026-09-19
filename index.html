@@ -164,6 +164,7 @@ tr:hover td{background:var(--panel2)}
   <header class="top">
     <div class="brand">Porta<span>foglio</span></div>
     <div class="headright">
+      <span class="eurusd" id="pricesWrap">Prezzi <b id="pricesAt">—</b></span>
       <span class="eurusd">EUR/USD <b id="eurusd">—</b></span>
       <span class="status" id="status"></span>
       <button class="ghost" id="logout">Esci</button>
@@ -234,6 +235,9 @@ async function loadAll(){
   if(hold.error){ alert("Errore lettura dati: "+hold.error.message); return; }
 
   const priceMap = {}; (pri.data||[]).forEach(p => priceMap[p.isin] = p.market_price);
+  const stamps = (pri.data||[]).map(p=>p.updated_at).filter(Boolean).sort();
+  state.prices_at = stamps.length ? stamps[stamps.length-1] : "";
+  state.prices_old = state.prices_at ? (pri.data||[]).filter(p=>!p.updated_at || (new Date(state.prices_at)-new Date(p.updated_at))>3*864e5).length : 0;
   const settings = {}; (setg.data||[]).forEach(s => settings[s.key] = s.value);
   state.eurusd = parseFloat(settings.eurusd) || 1.14;
   state.last_updated = settings.last_updated || "";
@@ -280,6 +284,24 @@ function keyAgg(holdings, field){
   const g={}; holdings.forEach(h=>{ const k=h[field]||'—'; g[k]=(g[k]||0)+valEur(h); }); return g;
 }
 
+
+// Ultimo aggiornamento prezzi: il bot gira lun-ven alle 19:30 UTC. Verde = in regola, giallo = in ritardo, rosso = saltato.
+function lastExpectedRun(){
+  const n=new Date();let d=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate(),19,30));
+  if(d>n)d=new Date(d-864e5);
+  while([0,6].includes(d.getUTCDay()))d=new Date(d-864e5);
+  return d;
+}
+function showPricesAge(){
+  const el=$("#pricesAt"),wrap=$("#pricesWrap");if(!el)return;
+  if(!state.prices_at){el.textContent="—";wrap.title="Nessun prezzo salvato";return;}
+  const d=new Date(state.prices_at),lag=(lastExpectedRun()-d)/36e5;
+  el.textContent=d.toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  el.style.color=lag<=3?'var(--pos)':(lag<=27?'var(--accent)':'var(--neg)');
+  wrap.title="Ultimo aggiornamento: "+d.toLocaleString('it-IT',{dateStyle:'full',timeStyle:'short'})
+    +(lag>3?"\nATTENZIONE: l'aggiornamento automatico di "+lastExpectedRun().toLocaleDateString('it-IT')+" non risulta eseguito.":"")
+    +(state.prices_old?"\n"+state.prices_old+(state.prices_old===1?" prezzo non si aggiorna":" prezzi non si aggiornano")+" da oltre 3 giorni (manuale o non trovato).":"");
+}
 // ============================ RENDER ============================
 function buildTabs(){
   const tabs=[["maicol","Maicol"],["martina","Martina"],["combinato","Combinato"],["storico","Storico"],["movimenti","Movimenti"],["spese","Spese"],["registro","Registro"]];
@@ -289,6 +311,7 @@ function buildTabs(){
 
 function render(){
   $("#eurusd").textContent = state.eurusd.toFixed(4);
+  showPricesAge();
   Object.values(charts).forEach(c=>c&&c.destroy()); charts={};
   const v=$("#view");
   if(currentTab==='maicol') v.innerHTML=portfolioHTML('maicol');
