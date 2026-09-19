@@ -708,7 +708,8 @@ function bkDate(v){
 function bkDetect(grid){
   const head=grid.slice(0,40),first=(grid[0]||[]).map(c=>bkS(c).trim());
   if(first.includes('Data di inizio')&&first.includes('Prodotto'))return 'revolut';
-  if(first.includes('Data contabile')&&first.includes('Causale ABI'))return 'credem';
+  if(head.some(r=>r.some(c=>bkS(c).trim()==='Data contabile')&&r.some(c=>bkS(c).trim()==='Causale ABI')))return 'credem';
+  if(head.some(r=>/Conti correnti Riepiloghi|Riepilogo delle transazioni/.test(bkS(r[0]))))return 'revolut_consolidato';
   if(head.some(r=>bkS(r[0]).trim()==='Data'&&bkS(r[1]).trim()==='Operazione'))return 'intesa';
   if(head.some(r=>bkS(r[0]).trim()==='Data operazione'&&r.some(c=>bkS(c).trim()==='Estratto conto del')))return 'cartaego';
   if(first.includes('Persona')&&first.includes('Importo €'))return 'database';
@@ -946,7 +947,7 @@ function bkDatabase(grid){
   return{rows,skipped};
 }
 
-const BK_LABEL={revolut:'Revolut · Maicol',credem:'Credem · Maicol',intesa:'Intesa · Martina',database:'Foglio Movimenti',cartaego:'Carta Ego · Maicol'};
+const BK_LABEL={revolut_consolidato:'Revolut (consolidato)',revolut:'Revolut · Maicol',credem:'Credem · Maicol',intesa:'Intesa · Martina',database:'Foglio Movimenti',cartaego:'Carta Ego · Maicol'};
 async function bkParseFile(f,mem,fx){
   let grids;
   if(/\.(csv|txt)$/i.test(f.name)){
@@ -962,6 +963,7 @@ async function bkParseFile(f,mem,fx){
   for(const grid of grids){
     const kind=bkDetect(grid);
     if(!kind)continue;
+    if(kind==='revolut_consolidato')return{name:f.name,kind,rows:[],skipped:0,note:'estratto consolidato Revolut: formato non supportato (cambi reali diversi dallo storico, creerebbe doppioni). Scarica dall\'app Revolut «Estratto conto» in Excel/CSV, come maicol_revolut.csv.'};
     const res=kind==='revolut'?bkRevolut(grid,mem,fx):kind==='credem'?bkCredem(grid,mem):kind==='intesa'?bkIntesa(grid):kind==='cartaego'?bkCartaEgo(grid):bkDatabase(grid);
     return{name:f.name,kind,...res};
   }
@@ -1046,6 +1048,7 @@ async function spImpFiles(e){
 function spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn){
   const lines=parsed.map(p=>{
     if(!p.kind)return '<div style="color:var(--neg)">✕ '+spEsc(p.name)+' — formato non riconosciuto</div>';
+    if(p.note)return '<div style="color:var(--neg)">⚠ '+spEsc(p.name)+' — '+spEsc(p.note)+'</div>';
     const ds=p.rows.map(r=>r.data).sort(),rng=ds.length?ds[0]+' → '+ds[ds.length-1]:'';
     let x='<div><span class="pos">✓</span> '+spEsc(p.name)+' — '+BK_LABEL[p.kind]+' · '+p.rows.length+' righe ('+rng+')';
     if(p.coverage&&p.coverage.length)x+='<br><span class="dim">dettaglio completo per: '+bkRanges(p.coverage)+'</span>';

@@ -24,3 +24,12 @@ export/
 
 # Claude
 .claude/
+
+# Segreti e dati personali: MAI su GitHub (il repo e' pubblico)
+.env
+.venv/
+.DS_Store
+estratti_conto/
+dettaglio_fondi/
+*.zip
+

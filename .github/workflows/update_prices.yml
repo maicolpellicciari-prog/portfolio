@@ -1,19 +1,23 @@
 name: Aggiorna prezzi portafoglio
 
-# v2
+# Ogni giorno lun-ven alle 19:30 UTC (21:30 ora italiana, dopo la chiusura dei mercati USA)
+# scarica i prezzi (Yahoo Finance) e li scrive nel database Supabase, che e' quello letto dalla app.
+# Il venerdi' salva anche lo snapshot dell'andamento (grafico "Storico").
+# Serve anche a tenere attivo il progetto Supabase (il piano gratuito va in pausa dopo 7 giorni senza attivita').
+#
+# Richiede due "secrets" nel repo (Settings > Secrets and variables > Actions > New repository secret):
+#   SUPABASE_URL          es. https://xxxx.supabase.co
+#   SUPABASE_SERVICE_KEY  la chiave *secret* / service_role di Supabase
 on:
   schedule:
-    # Ogni giorno lun-ven alle 19:30 UTC = 21:30 ora italiana (dopo chiusura mercati USA)
     - cron: '30 19 * * 1-5'
   workflow_dispatch:
-    # Permette esecuzione manuale dal sito GitHub (utile per test o aggiornamenti extra)
 
 jobs:
   update-prices:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # necessario per committare prezzi_live.json
-
+      contents: read
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -27,24 +31,23 @@ jobs:
       - name: Installa dipendenze
         run: pip install -r requirements.txt
 
-      - name: Aggiorna prezzi
-        run: python aggiorna_prezzi.py
-
-      - name: Commit e push prezzi_live.json
+      - name: Controlla i secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Salva il file aggiornato dallo script Python
-          cp prezzi_live.json /tmp/prezzi_live_new.json
-          # Sincronizza forzatamente con il remote (evita conflitti fetch first)
-          git fetch origin master
-          git reset --hard origin/master
-          # Ripristina il file aggiornato
-          cp /tmp/prezzi_live_new.json prezzi_live.json
-          git add prezzi_live.json
-          if git diff --staged --quiet; then
-            echo "Nessuna variazione nei prezzi"
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
+            echo "::error::Mancano i secrets SUPABASE_URL e/o SUPABASE_SERVICE_KEY. Aggiungili in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Aggiorna prezzi (e snapshot il venerdi')
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ "$(date -u +%u)" = "5" ]; then
+            python aggiorna.py --no-excel
           else
-            git commit -m "prezzi: aggiornamento automatico $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git push origin master
+            python aggiorna.py --no-excel --no-snapshot
           fi
