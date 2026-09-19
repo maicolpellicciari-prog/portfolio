@@ -718,6 +718,14 @@ function spExport(){const data=spState.rows.map(r=>({Persona:r.persona,Data:r.da
 // Tassi fissi verso EUR (stessi usati nello storico). Valute non presenti qui vengono chieste a frankfurter.dev.
 const BK_FX={JPY:165.70429,CNY:8.124895,HKD:9.0563,IDR:20240.58,VND:30657.92};
 const BK_REV_DATE='Data di inizio';
+// Nomi personali (familiari, datore di lavoro, me): NON stanno nel codice, che e' pubblico.
+// Sono nella tabella settings (chiave 'import_nomi') e vengono caricati dopo il login.
+const BK_NEVER=/(?!x)x/;
+let BK_NOMI={famiglia:BK_NEVER,datore:BK_NEVER,io:BK_NEVER,datoreCat:'Datore di lavoro'};
+function bkSetNomi(o){
+  const mk=a=>Array.isArray(a)&&a.length?new RegExp(a.map(x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'i'):BK_NEVER;
+  BK_NOMI={famiglia:mk(o&&o.famiglia),datore:mk(o&&o.datore),io:mk(o&&o.io),datoreCat:(o&&o.datore_categoria)||'Datore di lavoro'};
+}
 const bkS=v=>v==null?'':String(v);
 const bkR2=x=>Math.sign(x)*Math.round(Math.abs(x)*100)/100;
 function bkNum(v){if(typeof v==='number')return v;let s=bkS(v).trim();if(!s||s==='-')return NaN;if(/,\d+$/.test(s))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(/,/g,'');return parseFloat(s);}
@@ -807,9 +815,9 @@ function bkCredemClass(D,C,v){
   if(/PREAUTORIZZATO MORGAN STANLEY/.test(U))return{...b,categoria:'PAC',tipo:'investimento'};
   if(/(ACQUISTO|VENDITA) TITOLI|SOTTOSCRIZIONE FONDI|RIMBORSO TITOLI/.test(U))return{...b,categoria:'Titoli',tipo:'investimento'};
   if(/REVOLUT/.test(U))return{...b,categoria:'Giroconto Revolut',tipo:'giroconto'};
-  if(/ANNONI MARTINA/.test(U))return{...b,categoria:'Famiglia',tipo:'giroconto'};
+  if(BK_NOMI.famiglia.test(D))return{...b,categoria:'Famiglia',tipo:'giroconto'};
   if(/VERS\. ?CONTANTE|VERSAMENTO CONTANTE|VERS\. ASSEGNI/.test(U))return{...b,categoria:'Versamento contante/assegni',tipo:'giroconto'};
-  if(/LUXOTTICA/.test(U)&&v>0)return{...b,categoria:/EMOLUMENTI/.test(U)?'Stipendio':'Luxottica',tipo:'reddito'};
+  if(BK_NOMI.datore.test(D)&&v>0)return{...b,categoria:/EMOLUMENTI/.test(U)?'Stipendio':BK_NOMI.datoreCat,tipo:'reddito'};
   if(/ALLIANZ BANK/.test(U)&&v>0)return{...b,categoria:'Trasferimento',tipo:'investimento'};
   if(/PRELIEVO|PREL\.? |COM PREL|COMM\.? PREL/.test(U))return{...b,categoria:'prelievo',tipo:'spesa'};
   if(/^(COMPETENZE|BOLLI? |BOLLO|CANONE|ONERI|COMM(\.|ISSION| )|IMPOSTA|SPESE|RECUPERO SPESE)/.test(U)||/^(COCUR|COINT|COCBI|CPCC|VBBOL|VBBOS|COPR)/.test(C||''))return{...b,categoria:'Spese banca',tipo:'spesa'};
@@ -842,12 +850,12 @@ const BK_REV_CAT=[
 function bkRevClass(tipo,prod,desc,v){
   const T=tipo.trim(),D=desc.trim();
   if(T==='Interessi')return{categoria:'Interessi',tipo:'reddito'};
-  if(T==='Cambia valuta'||T==='Ricarica'||T==='Addebita'||/senza vincoli|^Revolut Bank UAB$|Maicol Pellicciari/i.test(D))return{categoria:'(interno)',tipo:'giroconto'};
+  if(T==='Cambia valuta'||T==='Ricarica'||T==='Addebita'||/senza vincoli|^Revolut Bank UAB$/i.test(D)||BK_NOMI.io.test(D))return{categoria:'(interno)',tipo:'giroconto'};
   if(T==='Prelievo')return{categoria:'prelievo',tipo:'spesa'};
   if(T==='Commissione')return{categoria:'Commissioni',tipo:'spesa'};
   if(T==='Rimborso su carta'||T==='CARD_CREDIT')return{categoria:'Rimborso',tipo:'rimborso'};
   if(/previdenza sociale|\bINPS\b/i.test(D))return{categoria:'Tasse/Contributi',tipo:'investimento'};
-  if(/ANNONI MARTINA/i.test(D))return{categoria:'Famiglia',tipo:'giroconto'};
+  if(BK_NOMI.famiglia.test(D))return{categoria:'Famiglia',tipo:'giroconto'};
   if(T==='Pagamento'){
     if(v>0)return{categoria:'Trasferimento ricevuto',tipo:'reddito'};
     return{categoria:'Bonifico inviato',tipo:'spesa'};
@@ -894,7 +902,7 @@ function bkIntesa(grid){
     let categoria,tipo;
     if(BK_INTESA[cat])[categoria,tipo]=BK_INTESA[cat];
     else{categoria=cat||'Altro';tipo=v>0?'reddito':'spesa';}
-    if(/Bonifici in uscita|Bonifico/i.test(cat+' '+op)&&/maicol pellicciari/i.test(op+' '+det)){categoria='Bonifico inviato';tipo='giroconto';}
+    if(/Bonifici in uscita|Bonifico/i.test(cat+' '+op)&&BK_NOMI.io.test(op+' '+det)){categoria='Bonifico inviato';tipo='giroconto';}
     else if(cat==='Bonifici in uscita'){categoria='Bonifico inviato';tipo='spesa';}
     const useDet=det&&!/^(effettuato il|cod\.? ?disp)/i.test(det)&&det!==op;
     const desc=(useDet?op+' · '+det:op).slice(0,80);
@@ -1030,6 +1038,10 @@ function spOpenImp(){
 async function spLoadCov(){
   try{const{data}=await sb.from('settings').select('value').eq('key','carta_ego_coperti').maybeSingle();return data&&data.value?JSON.parse(data.value):[];}catch(e){return [];}
 }
+async function spLoadNomi(){
+  try{const{data}=await sb.from('settings').select('value').eq('key','import_nomi').maybeSingle();bkSetNomi(data&&data.value?JSON.parse(data.value):null);}
+  catch(e){bkSetNomi(null);}
+}
 function bkRanges(ms){
   const a=[...ms].sort(),out=[],nx=m=>{const[y,mm]=m.split('-').map(Number);return mm===12?bkMonth(y+1,1):bkMonth(y,mm+1);};
   let s=null,p=null;
@@ -1046,6 +1058,7 @@ async function spImpFiles(e){
   const prev=document.getElementById('sp-prev'),btn=document.getElementById('sp-savebtn');
   btn.disabled=true;prev.textContent='Leggo i file…';
   try{
+    await spLoadNomi();
     const mem=bkMemory(spState.rows),parsed=[];let fx={};
     for(const f of files){
       let p=await bkParseFile(f,mem,fx);
