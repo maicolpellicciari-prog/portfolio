@@ -877,9 +877,64 @@ function bkRevolut(grid,mem,fx){
     const desc=bkS(r[iDs]),eur=cur==='EUR'?v:bkR2(v/rate);
     let cl=/ANNULL|REVERT|RIFIUT|DECLIN|FALLIT/.test(st)?{categoria:'(annullato)',tipo:'annullato'}:bkRevClass(bkS(r[iT]),bkS(r[iP]),desc,v);
     cl=bkApplyMem(mem,'Revolut',desc,eur,{canale:'Revolut',...cl});
-    rows.push({persona:'Maicol',data,fonte:'Revolut',canale:'Revolut',descrizione:desc,fpDesc:desc,importo_orig:v,valuta:cur,importo_eur:eur,categoria:cl.categoria,tipo:cl.tipo,conta:bkConta(cl.tipo)});
+    rows.push({persona:'Maicol',data,fonte:'Revolut',canale:'Revolut',descrizione:desc,fpDesc:desc,importo_orig:v,valuta:cur,importo_eur:eur,categoria:cl.categoria,tipo:cl.tipo,conta:bkConta(cl.tipo),fuzzy:true});
   }
   return{rows,skipped,noFx};
+}
+
+/* ---- Revolut: estratto CONSOLIDATO (una tabella per ogni conto in valuta) ----
+   Ha la data di completamento (lo storico ha quella di inizio: scarto di 0-2 giorni), quindi le righe
+   segnate "fuzzy" si confrontano con lo storico per descrizione + importo + data vicina (bkFuzzyDrop).
+   Le tabelle degli interessi (importi netti, date in altra forma) e degli acquisti crypto non si importano. */
+const BK_MESI={gen:1,feb:2,mar:3,apr:4,mag:5,giu:6,lug:7,ago:8,set:9,ott:10,nov:11,dic:12};
+function bkDateIt(s){
+  const m=bkS(s).trim().match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]{3})[A-Za-z.]*\s+(\d{4})/),mo=m&&BK_MESI[m[2].toLowerCase()];
+  return mo?`${m[3]}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`:'';
+}
+const bkMoney=s=>{const t=bkS(s).replace(/[^\d,.\-]/g,'');return t&&t!=='-'?parseFloat(t.replace(/\./g,'').replace(',','.')):NaN;};
+const BK_REV_CATTIPO={'Esercente':'Pagamento con carta','Cambio valuta':'Cambia valuta','Ricarica':'Ricarica','Prelievo':'Prelievo','Rimborso':'Rimborso su carta','Commissione':'Commissione'};
+function bkRevolutConsolidato(grid,mem){
+  const rows=[];let cur=null,mode=null,skipped=0;
+  for(const r of grid){
+    const ne=r.filter(c=>bkS(c).trim());
+    if(ne.length===1){
+      const t=bkS(ne[0]).trim(),m=t.match(/^Conto personale \((\w+)\)/);
+      if(m){cur=m[1];mode=null;}
+      else if(/^Riepilogo delle transazioni/.test(t))mode='tx';
+      else if(/^(Riepilogo della transazione|Riepilogo transazioni|Riepilogo delle posizioni|Investment Services|Crypto)/.test(t))mode=null;
+      continue;
+    }
+    if(mode!=='tx'||!cur)continue;
+    const data=bkDateIt(r[0]);if(!data)continue;               // salta intestazioni e righe "Totale"
+    const v=bkMoney(r[3]);if(isNaN(v)){skipped++;continue;}
+    const desc=bkS(r[1]),cat=bkS(r[2]).trim(),rate=BK_FX[cur];
+    // valute gia' nello storico: stesso tasso fisso (cosi' gli importi combaciano); valute nuove: cambio reale di Revolut
+    const eur=cur==='EUR'?v:(rate?bkR2(v/rate):bkMoney(r[4]));
+    if(isNaN(eur)){skipped++;continue;}
+    let tipo=BK_REV_CATTIPO[cat]||'Pagamento';
+    if(/Digital Assets/i.test(desc))tipo='Cambia valuta';
+    const cl=bkApplyMem(mem,'Revolut',desc,eur,{canale:'Revolut',...bkRevClass(tipo,'',desc,v)});
+    rows.push({persona:'Maicol',data,fonte:'Revolut',canale:'Revolut',descrizione:desc,fpDesc:desc,importo_orig:v,valuta:cur,importo_eur:eur,categoria:cl.categoria,tipo:cl.tipo,conta:bkConta(cl.tipo),fuzzy:true});
+  }
+  return{rows,skipped,info:'interessi giornalieri e acquisti crypto non importati (usa l\'estratto conto CSV per gli interessi)'};
+}
+// Toglie le righe "fuzzy" che hanno gia' un corrispondente nello storico (stessa descrizione normalizzata, valuta e importo;
+// data entro N giorni), una a una. Va chiamata DOPO bkFingerprints, cosi' i doppioni veri (#2, #3) restano distinti.
+const bkNorm=s=>bkS(s).toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g,'').slice(0,40);
+function bkFuzzyDrop(rows,dbRows,days){
+  const pool={},key=(d,cur,eur)=>bkNorm(d)+'|'+cur+'|'+bkR2(+eur);
+  for(const d of dbRows){
+    if(d.fonte!=='Revolut'||d.tipo==='annullato')continue;
+    const k=key(d.descrizione,d.valuta,d.importo_eur);(pool[k]=pool[k]||[]).push({t:Date.parse(d.data),used:false});
+  }
+  const keep=[];let dup=0;
+  for(const r of rows){
+    if(!r.fuzzy||r.tipo==='annullato'){keep.push(r);continue;}
+    const t=Date.parse(r.data);let best=null;
+    for(const c of pool[key(r.fpDesc,r.valuta,r.importo_eur)]||[])if(!c.used&&Math.abs(c.t-t)<=days*864e5&&(!best||Math.abs(c.t-t)<Math.abs(best.t-t)))best=c;
+    if(best){best.used=true;dup++;}else keep.push(r);
+  }
+  return{keep,dup};
 }
 
 /* ---- Intesa Sanpaolo (Martina) ---- */
@@ -994,8 +1049,7 @@ async function bkParseFile(f,mem,fx){
   for(const grid of grids){
     const kind=bkDetect(grid);
     if(!kind)continue;
-    if(kind==='revolut_consolidato')return{name:f.name,kind,rows:[],skipped:0,note:'estratto consolidato Revolut: formato non supportato (cambi reali diversi dallo storico, creerebbe doppioni). Scarica dall\'app Revolut «Estratto conto» in Excel/CSV, come maicol_revolut.csv.'};
-    const res=kind==='revolut'?bkRevolut(grid,mem,fx):kind==='credem'?bkCredem(grid,mem):kind==='intesa'?bkIntesa(grid):kind==='cartaego'?bkCartaEgo(grid):bkDatabase(grid);
+    const res=kind==='revolut_consolidato'?bkRevolutConsolidato(grid,mem):kind==='revolut'?bkRevolut(grid,mem,fx):kind==='credem'?bkCredem(grid,mem):kind==='intesa'?bkIntesa(grid):kind==='cartaego'?bkCartaEgo(grid):bkDatabase(grid);
     return{name:f.name,kind,...res};
   }
   return{name:f.name,kind:null,rows:[],skipped:0};
@@ -1065,8 +1119,14 @@ async function spImpFiles(e){
       if(p.noFx&&Object.keys(p.noFx).length){Object.assign(fx,await spFetchFx(Object.keys(p.noFx)));p=await bkParseFile(f,mem,fx);}
       parsed.push(p);
     }
+    // Consolidato + CSV "Estratto conto" nella stessa importazione: il CSV e' la fonte, il consolidato conta solo dopo la sua ultima data
+    const csvRev=parsed.filter(q=>q.kind==='revolut');
+    if(csvRev.length)parsed.filter(p=>p.kind==='revolut_consolidato').forEach(p=>{
+      const mx=csvRev.flatMap(q=>q.rows.map(r=>r.data)).sort().pop(),n0=p.rows.length;
+      p.rows=p.rows.filter(r=>r.data>mx);p.coperte=n0-p.rows.length;
+    });
     parsed.forEach((p,i)=>p.rows.forEach(r=>{r.src=i;}));
-    const tot=parsed.reduce((a,p)=>a+p.rows.length,0),all=bkFingerprints(parsed.flatMap(p=>p.rows));
+    const totIn=parsed.reduce((a,p)=>a+p.rows.length,0),fp=bkFingerprints(parsed.flatMap(p=>p.rows)),fz=bkFuzzyDrop(fp,spState.rows,5),all=fz.keep,tot=all.length+fz.dup,cross=totIn-fp.length;
     // Carta Ego: mesi di cui abbiamo il dettaglio completo (gia' registrati + quelli di questo import)
     const cartaIn=parsed.some(p=>p.kind==='cartaego'),covOld=await spLoadCov(),cov=new Set(covOld);
     parsed.forEach(p=>(p.coverage||[]).forEach(m=>cov.add(m)));
@@ -1075,7 +1135,7 @@ async function spImpFiles(e){
     const covChanged=cov.size!==covOld.length;
     spState.impRecs=nuovi.map(r=>({fingerprint:r.fingerprint,persona:r.persona,data:r.data,fonte:r.fonte,canale:r.canale,descrizione:r.descrizione,importo_orig:r.importo_orig,valuta:r.valuta,importo_eur:r.importo_eur,categoria:r.categoria,tipo:r.tipo,conta:r.conta}));
     spState.impUpd=upd;spState.impCov=[...cov].sort();spState.impCovChanged=covChanged;
-    prev.innerHTML=spImpHTML(parsed,all.length,tot-all.length,nuovi,upd,cov,cartaIn);
+    prev.innerHTML=spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn);
     const n=nuovi.length,extra=upd.length>0||covChanged;
     btn.disabled=!(n||extra);btn.textContent=n?'Salva '+n+' movimenti':(extra?'Applica':'Salva');
   }catch(err){prev.innerHTML='<span style="color:var(--neg)">Errore nella lettura: '+spEsc(err.message)+'</span>';}
@@ -1088,6 +1148,8 @@ function spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn){
     const ds=p.rows.map(r=>r.data).sort(),rng=ds.length?ds[0]+' → '+ds[ds.length-1]:'';
     let x='<div><span class="pos">✓</span> '+spEsc(p.name)+' — '+BK_LABEL[p.kind]+' · '+p.rows.length+' righe ('+rng+')';
     if(p.coverage&&p.coverage.length)x+='<br><span class="dim">dettaglio completo per: '+bkRanges(p.coverage)+'</span>';
+    if(p.info)x+='<br><span class="dim">'+spEsc(p.info)+'</span>';
+    if(p.coperte)x+=' \u00b7 '+p.coperte+' righe gi\u00e0 coperte dal CSV \u00abEstratto conto\u00bb caricato insieme: ignorate';
     if(p.doppie)x+=' · '+p.doppie+' righe doppie (download sovrapposti) scartate';
     if(p.skipped)x+=' · <span style="color:var(--neg)">'+p.skipped+' ignorate</span>';
     if(p.noFx&&Object.keys(p.noFx).length)x+=' · <span style="color:var(--neg)">senza tasso di cambio, escluse: '+Object.entries(p.noFx).map(([k,v])=>k+' '+v).join(', ')+'</span>';
