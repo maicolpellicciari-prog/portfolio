@@ -849,6 +849,7 @@ const BK_REV_CAT=[
 ];
 function bkRevClass(tipo,prod,desc,v){
   const T=tipo.trim(),D=desc.trim();
+  if(/Digital Assets/i.test(D))return v<0?{categoria:'Crypto',tipo:'investimento'}:{categoria:'(interno)',tipo:'giroconto'}; // acquisti crypto = investimento; il rientro resta giroconto (gli investimenti si sommano in valore assoluto)
   if(T==='Interessi')return{categoria:'Interessi',tipo:'reddito'};
   if(T==='Cambia valuta'||T==='Ricarica'||T==='Addebita'||/senza vincoli|^Revolut Bank UAB$/i.test(D)||BK_NOMI.io.test(D))return{categoria:'(interno)',tipo:'giroconto'};
   if(T==='Prelievo')return{categoria:'prelievo',tipo:'spesa'};
