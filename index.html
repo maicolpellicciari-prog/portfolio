@@ -845,11 +845,15 @@ function bkCredem(grid,mem){
 
 /* ---- Revolut ---- */
 const BK_REV_CAT=[
-  ['Abbonamenti',/netflix|spotify|apple\.com|google|youtube|icloud|openai|anthropic|prime video|disney|dazn|patreon|subscription/i],
-  ['Viaggi',/booking|airbnb|trip\.com|hotel|hostel|klook|agoda|flixbus|trenitalia|italo|ryanair|easyjet|airline|airways|uber|grab\b|taxi|didi|metro|railway|jr east|suica|pasmo/i],
-  ['Ristoranti',/restaurant|ristorante|pizz|caf[eé]|bar\b|starbucks|mcdonald|sushi|bakery|coffee|kfc|burger|ramen|trattoria|osteria|izakaya|gelat/i],
-  ['Alimentari',/supermarket|market|coop|conad|esselunga|carrefour|lidl|aldi|eurospin|7-eleven|seven.?eleven|familymart|lawson|ministop|panetteria/i],
-  ['Shopping',/amazon|zara|h&m|uniqlo|muji|decathlon|ikea|aliexpress|taobao|shein|apple store/i],
+  ['Abbonamenti',/netflix|spotify|apple\.com|itunes|google|youtube|icloud|openai|anthropic|prime video|disney|dazn|patreon|subscription|glucose ?godd/i],
+  ['Viaggi',/booking|airbnb|trip\.com|hotel|hostel|klook|agoda|flixbus|trenitalia|italo|ryanair|easyjet|airline|airways|uber|grab\b|taxi|didi|metro|railway|jr east|suica|pasmo|navigazione|transport for nsw|mobilit[eé]s|\bmtr\b|tramway|airalo|national parks|geopark|captain cook|uluwatu|finpay|finnet|\bdoku\b|marco polo park|love bali|aci blueteam|event george/i],
+  ['Ristoranti',/restaurant|ristorante|pizz|caf[eé]|bar\b|starbucks|mcdonald|sushi|bakery|coffee|kfc|burger|ramen|trattoria|osteria|izakaya|gelat|bistro|kitchen|grind|sour ?dough|pasticceria|dessert|bakehouse|arabica|frites|duddell|yardbird|excalibur|astor belluno|tst iberica|reddy express|hati id|rick shores|natys gourmet|hana musubi|mannarino|bubly|doyles|blackwood|\bshuk\b|wgb manly|gigi al mare|krèm|letsgo|s\.p\.v\.|g\.m\. s\.a\.s/i],
+  ['Alimentari',/supermarket|market|coop|conad|esselunga|carrefour|lidl|aldi|eurospin|7-eleven|seven.?eleven|familymart|lawson|ministop|panetteria|franprix|woolworths|\bcoles\b|grocer|maloneys/i],
+  ['Shopping',/amazon|zara|h&m|uniqlo|muji|decathlon|ikea|aliexpress|taobao|shein|apple store|hk store|responsible wear|indochinasilk|herm[eè]s|whsmith|moleskine|book room|bella lee|hoi fung/i],
+  ['Auto e trasporti',/tamoil|\besso\b|bsp auto|carr\. curtol|autogrill|touchless wash|parcheggi|autostrade/i],
+  ['Imposte e tasse',/consorzio|comune di/i],
+  ['Servizi',/translation services/i],
+  ['Salute',/farmacia|pharmacy/i],
   ['Sport',/gym|palestra|fitness|sport/i]
 ];
 function bkRevClass(tipo,prod,desc,v){
@@ -862,6 +866,7 @@ function bkRevClass(tipo,prod,desc,v){
   if(T==='Rimborso su carta'||T==='CARD_CREDIT')return{categoria:'Rimborso',tipo:'rimborso'};
   if(/previdenza sociale|\bINPS\b/i.test(D))return{categoria:'Tasse/Contributi',tipo:'investimento'};
   if(BK_NOMI.famiglia.test(D))return{categoria:'Famiglia',tipo:'giroconto'};
+  if(/^Pagamento a favore di/i.test(D))return v<0?{categoria:'Bonifico inviato',tipo:'spesa'}:{categoria:'Trasferimento ricevuto',tipo:'reddito'};
   if(T==='Pagamento'){
     if(v>0)return{categoria:'Trasferimento ricevuto',tipo:'reddito'};
     return{categoria:'Bonifico inviato',tipo:'spesa'};
@@ -967,6 +972,10 @@ function bkIntesa(grid){
     let categoria,tipo;
     if(BK_INTESA[cat])[categoria,tipo]=BK_INTESA[cat];
     else{categoria=cat||'Altro';tipo=v>0?'reddito':'spesa';}
+    if(categoria==='Altre uscite'&&tipo==='spesa'){   // la banca non classifica abbonamenti digitali e PayPal tra privati
+      if(/spotify|apple\.com|itunes|glucose ?godd/i.test(op+' '+det))categoria='Abbonamenti';
+      else if(/^paypal \*/i.test(op))categoria='Shopping';
+    }
     if(/Bonifici in uscita|Bonifico/i.test(cat+' '+op)&&BK_NOMI.io.test(op+' '+det)){categoria='Bonifico inviato';tipo='giroconto';}
     else if(cat==='Bonifici in uscita'){categoria='Bonifico inviato';tipo='spesa';}
     if(carta&&/^Ricarica$/i.test(op)){categoria='Ricarica';tipo='giroconto';}   // lato carta di una ricarica: l'altro lato e' sul conto
