@@ -273,10 +273,12 @@ def write_snapshot(data):
     for pf in ("maicol", "martina"):
         hs = [h for h in data["holdings"] if h["portfolio"] == pf]
         invested = sum(val_eur(h, data["prices"], data["eurusd"]) for h in hs)
-        cost     = sum(cost_eur(h, data["eurusd"]) for h in hs)
+        # azioni aziendali (no_pl): valgono nel patrimonio, ma restano fuori da costo e P&L
+        hs_pl    = [h for h in hs if not h.get("no_pl")]
+        cost     = sum(cost_eur(h, data["eurusd"]) for h in hs_pl)
         cassa    = sum(float(c["value"]) for c in data["cash"] if c["portfolio"] == pf)
         pens     = sum(float(p["value"]) for p in data["pension"] if p["portfolio"] == pf)
-        pl = invested - cost
+        pl = sum(val_eur(h, data["prices"], data["eurusd"]) for h in hs_pl) - cost
         rec = {"portfolio": pf, "snap_date": today,
                "invested": round(invested), "cash": round(cassa), "pension": round(pens),
                "total": round(invested + cassa + pens), "pl_eur": round(pl),
@@ -314,9 +316,11 @@ def build_excel(data):
     ws.append(cols); style_header(ws, len(cols))
     for h in sorted(data["holdings"], key=lambda x:(x["portfolio"], -val_eur(x, prices, eurusd))):
         v = val_eur(h, prices, eurusd); c = cost_eur(h, eurusd); pl = v - c
+        fuori = bool(h.get("no_pl"))   # azioni aziendali: niente costo/P&L
         ws.append([h["portfolio"], h["name"], h["isin"], h.get("detail"), h.get("type"),
-                   h["currency"], h["qty"], h["avg_price"], prices.get(h["isin"], 0),
-                   round(v,2), round(c,2), round(pl,2), round(pl/c*100,2) if c else 0])
+                   h["currency"], h["qty"], None if fuori else h["avg_price"], prices.get(h["isin"], 0),
+                   round(v,2), None if fuori else round(c,2), None if fuori else round(pl,2),
+                   None if fuori else (round(pl/c*100,2) if c else 0)])
     for col in "GHIJKL":
         for cell in ws[col]:
             cell.number_format = "#,##0.00"

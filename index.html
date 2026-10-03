@@ -263,10 +263,12 @@ const costEur = h => (h.qty * h.avg_price) / rate(h);
 
 function totals(holdings, cash_items, pension_items){
   const invested = holdings.reduce((s,h)=>s+valEur(h),0);
-  const cost = holdings.reduce((s,h)=>s+costEur(h),0);
+  // P&L solo sulle posizioni acquistate: le azioni aziendali (no_pl) valgono nel patrimonio ma restano fuori da costo, P&L e rendimento
+  const plSet = holdings.filter(h=>!h.no_pl);
+  const cost = plSet.reduce((s,h)=>s+costEur(h),0);
   const cassa = (cash_items||[]).reduce((s,c)=>s+ (+c.value||0),0);
   const pensione = (pension_items||[]).reduce((s,p)=>s+(+p.value||0),0);
-  const pl = invested - cost;
+  const pl = plSet.reduce((s,h)=>s+valEur(h),0) - cost;
   return { invested, cost, cassa, pensione, pl, plpct: cost? pl/cost*100:0, total: invested+cassa+pensione };
 }
 
@@ -353,13 +355,14 @@ function positionsTable(pf){
   const rows = hs.slice().sort((a,b)=>valEur(b)-valEur(a)).map(h=>{
     const pl = valEur(h)-costEur(h), plc=pl>=0?'pos':'neg', s=pl>=0?'+':'';
     const plp = costEur(h)? pl/costEur(h)*100:0;
+    const plCell = h.no_pl ? `<td class="dim">—<br><span style="font-size:11px">fuori dal P&L</span></td>` : `<td class="${plc}">${s}€${money(pl)}<br><span style="font-size:11px">${s}${plp.toFixed(1)}%</span></td>`;
     return `<tr>
-      <td><span class="nm">${h.name}</span><span class="badge">${h.detail||''}</span><br><span class="isin">${h.isin}</span></td>
+      <td><span class="nm">${h.name}</span><span class="badge">${h.detail||''}</span>${h.no_pl?'<span class="badge">azioni aziendali</span>':''}<br><span class="isin">${h.isin}</span></td>
       <td>${(+h.qty).toLocaleString('it-IT',{maximumFractionDigits:4})}</td>
-      <td>${money2(h.avg_price)}</td>
+      <td>${h.no_pl?'<span class="dim">—</span>':money2(h.avg_price)}</td>
       <td>${money2(h.market_price)}${h.currency==='USD'?' <span class="dim">$</span>':''}</td>
       <td>€${money(valEur(h))}</td>
-      <td class="${plc}">${s}€${money(pl)}<br><span style="font-size:11px">${s}${plp.toFixed(1)}%</span></td>
+      ${plCell}
       <td><button class="edit" data-edit="${pf}|${h.isin}">✎</button></td>
     </tr>`;
   }).join("");
@@ -499,6 +502,7 @@ function modalEdit(pf,isin){
     <h2>${h.name}</h2>
     <div class="seg"><button data-m="buy" class="${mode==='buy'?'on':''}">Nuovo acquisto</button><button data-m="direct" class="${mode==='direct'?'on':''}">Modifica diretta</button></div>
     <div id="mbody"></div>
+    <label class="rg-chk" style="margin-top:14px"><input type="checkbox" id="f-nopl"${h.no_pl?' checked':''}> Azioni aziendali / ricevute senza costo: escludi dal P&L</label>
     <div class="foot"><button class="cancel" data-close>Annulla</button><button class="save" id="msave">Salva</button></div>`;
   const buyBody=`<div class="dim mono" style="font-size:12px;margin:8px 0">Attuale: ${(+h.qty).toLocaleString('it-IT')} @ €${money2(h.avg_price)}</div>
     <label>Quantità acquistata</label><input id="f-nq" type="number" step="any" placeholder="0">
@@ -516,11 +520,11 @@ function modalEdit(pf,isin){
         const nq=parseFloat($("#f-nq").value), np=parseFloat($("#f-np").value);
         if(!(nq>0)||!(np>=0)){alert("Inserisci quantità e prezzo.");return;}
         const tq=(+h.qty)+nq, na=((+h.qty)*(+h.avg_price)+nq*np)/tq;
-        await saveHolding(pf,{...h,qty:tq,avg_price:na});
+        await saveHolding(pf,{...h,qty:tq,avg_price:na,no_pl:$("#f-nopl").checked});
         await logTx(pf,`Acquisto ${h.name}: +${nq} @ ${np} ${h.currency}`);
       } else {
         const q=parseFloat($("#f-q").value), a=parseFloat($("#f-a").value), m=parseFloat($("#f-m").value);
-        await saveHolding(pf,{...h,qty:q,avg_price:a});
+        await saveHolding(pf,{...h,qty:q,avg_price:a,no_pl:$("#f-nopl").checked});
         await savePrice(h.isin,m);
         await logTx(pf,`Modifica diretta ${h.name}`);
       }
@@ -541,12 +545,13 @@ function modalAdd(pf){
     <div class="row2"><div><label>Quantità</label><input id="a-qty" type="number" step="any"></div>
       <div><label>Prezzo medio</label><input id="a-avg" type="number" step="any"></div></div>
     <label>Prezzo di mercato</label><input id="a-mkt" type="number" step="any">
+    <label class="rg-chk" style="margin-top:14px"><input type="checkbox" id="a-nopl"> Azioni aziendali / ricevute senza costo: escludi dal P&L</label>
     <div class="foot"><button class="cancel" data-close>Annulla</button><button class="save" id="a-save">Aggiungi</button></div>`);
   $("#a-save").onclick=async()=>{
     const isin=$("#a-isin").value.trim().toUpperCase(), name=$("#a-name").value.trim();
     if(!isin||!name){alert("Nome e ISIN obbligatori.");return;}
     const rec={portfolio:pf,isin,name,detail:$("#a-detail").value,type:$("#a-type").value,currency:$("#a-cur").value,
-      qty:parseFloat($("#a-qty").value)||0,avg_price:parseFloat($("#a-avg").value)||0,geo:$("#a-geo").value.trim()||'Altro',asset:$("#a-detail").value==='CRYPTO'?'Crypto':'Azione'};
+      qty:parseFloat($("#a-qty").value)||0,avg_price:parseFloat($("#a-avg").value)||0,no_pl:$("#a-nopl").checked,geo:$("#a-geo").value.trim()||'Altro',asset:$("#a-detail").value==='CRYPTO'?'Crypto':'Azione'};
     const {error}=await sb.from('holdings').upsert(rec,{onConflict:'portfolio,isin'});
     if(error){alert(error.message);return;}
     await savePrice(isin,parseFloat($("#a-mkt").value)||0);
@@ -606,7 +611,7 @@ function modalCashPension(pf,kind){
 // ============================ DB HELPERS ============================
 async function saveHolding(pf,h){
   const rec={portfolio:pf,isin:h.isin,name:h.name,detail:h.detail,type:h.type,currency:h.currency,
-    qty:h.qty,avg_price:h.avg_price,geo:h.geo,geo_breakdown:h.geo_breakdown,asset:h.asset,updated_at:new Date().toISOString()};
+    qty:h.qty,avg_price:h.avg_price,no_pl:!!h.no_pl,geo:h.geo,geo_breakdown:h.geo_breakdown,asset:h.asset,updated_at:new Date().toISOString()};
   const {error}=await sb.from('holdings').upsert(rec,{onConflict:'portfolio,isin'});
   if(error) alert(error.message);
 }
@@ -624,7 +629,7 @@ function exportPortafoglio(){
       Nome:h.name,ISIN:h.isin,Strumento:h.detail,Categoria:h.type,Valuta:h.currency,
       Quantita:h.qty,PMC:h.avg_price,Prezzo:h.market_price,
       "Valore EUR":Math.round(v*100)/100,"Costo EUR":Math.round(c*100)/100,
-      "PL EUR":Math.round((v-c)*100)/100,"PL %":c?Math.round((v-c)/c*1000)/10:0,
+      "PL EUR":h.no_pl?"":Math.round((v-c)*100)/100,"PL %":h.no_pl?"":(c?Math.round((v-c)/c*1000)/10:0),"Fuori dal P&L":h.no_pl?"sì":"",
       Geografia:h.geo,Asset:h.asset};});
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Posizioni "+nome[pf]);
   });
