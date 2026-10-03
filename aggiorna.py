@@ -106,6 +106,8 @@ FONDIONLINE_URLS = {
 FONDIONLINE_ISINS = set(FONDIONLINE_URLS.keys())
 
 # BTP → scraper Borsa Italiana
+# Fondi per cui Yahoo restituisce un'altra serie/classe di quote: il prezzo si prende prima da FondiOnline
+FONDIONLINE_FIRST = {'IT0005367757'}   # Eurizon Tesoreria Euro (Yahoo 16,33 vs NAV banca 16,065 al 30/09/2026)
 BORSA_ITALIANA_ISINS = {'IT0005631590', 'IT0005635583', 'IT0005240350', 'IT0005637399'}
 
 # ---------------------------------------------------------------------------
@@ -229,6 +231,12 @@ def update_prices(data):
             price, fonte = fetch_borsa_italiana(isin), "Borsa Italiana"
         elif ticker:
             price, fonte = fetch_yahoo(ticker), "Yahoo"
+        elif isin in FONDIONLINE_FIRST:
+            price, fonte = fetch_fondionline(isin), "FondiOnline"
+            if not price:
+                sym = yahoo_symbol_from_isin(isin)
+                price = fetch_yahoo(sym) if sym else None
+                fonte = f"Yahoo/{sym}" if price else None
         else:
             # fondi: risolvi l'ISIN in un simbolo Yahoo, poi prendi il prezzo;
             # se Yahoo non lo trova, ripiega sullo scraper FondiOnline
