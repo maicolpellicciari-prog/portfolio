@@ -741,7 +741,7 @@ function bkDetect(grid){
   if(first.includes('Data di inizio')&&first.includes('Prodotto'))return 'revolut';
   if(head.some(r=>r.some(c=>bkS(c).trim()==='Data contabile')&&r.some(c=>bkS(c).trim()==='Causale ABI')))return 'credem';
   if(head.some(r=>/Conti correnti Riepiloghi|Riepilogo delle transazioni/.test(bkS(r[0]))))return 'revolut_consolidato';
-  if(head.some(r=>bkS(r[0]).trim()==='Data'&&bkS(r[1]).trim()==='Operazione'))return 'intesa';
+  if(head.some(r=>{const c=r.map(x=>bkS(x).trim());return c.includes('Data')&&c.includes('Operazione')&&c.includes('Importo');}))return 'intesa';
   if(head.some(r=>bkS(r[0]).trim()==='Data operazione'&&r.some(c=>bkS(c).trim()==='Estratto conto del')))return 'cartaego';
   if(first.includes('Persona')&&first.includes('Importo €'))return 'database';
   return null;
@@ -947,24 +947,41 @@ const BK_INTESA={
   'Addebito mia carta di credito':['Carta di credito','spesa'],'Entrate varie':['Entrate varie','reddito']
 };
 function bkIntesa(grid){
-  const hi=grid.findIndex(r=>bkS(r[0]).trim()==='Data'&&bkS(r[1]).trim()==='Operazione'),H=grid[hi].map(c=>bkS(c).trim());
-  const iD=0,iO=H.indexOf('Operazione'),iDt=H.indexOf('Dettagli'),iC=H.findIndex(h=>h.startsWith('Categoria')),iV=H.indexOf('Valuta'),iI=H.indexOf('Importo');
-  const rows=[];let skipped=0;
+  const hi=grid.findIndex(r=>{const c=r.map(x=>bkS(x).trim());return c.includes('Data')&&c.includes('Operazione')&&c.includes('Importo');}),H=grid[hi].map(c=>bkS(c).trim());
+  const iD=H.indexOf('Data'),iO=H.indexOf('Operazione'),iDt=H.indexOf('Dettagli'),iV=H.indexOf('Valuta'),iI=H.indexOf('Importo'),iA=H.indexOf('Conto o carta'),iK=H.indexOf('Contabilizzazione');
+  // layout nuovo: "Categoria" (generale) + "Dettaglio Categoria"; layout vecchio: solo "Categoria" (= il dettaglio)
+  const iC=H.indexOf('Dettaglio Categoria')>=0?H.indexOf('Dettaglio Categoria'):H.findIndex(h=>h.startsWith('Categoria'));
+  const rows=[];let skipped=0,nonContab=0;
   for(const r of grid.slice(hi+1)){
     const data=bkDate(r[iD]),v=bkNum(r[iI]);
     if(!data||isNaN(v)){if(r.some(c=>bkS(c).trim()))skipped++;continue;}
-    const op=bkS(r[iO]).trim(),det=bkS(r[iDt]).trim(),cat=bkS(r[iC]).trim(),cur=bkS(r[iV]).trim()||'EUR';
-    if(cur!=='EUR'){skipped++;continue;}
+    if(iK>=0&&/^(NO|NON)\b/i.test(bkS(r[iK]).trim())){nonContab++;continue;}   // provvisori: l'importo cambia quando la banca li contabilizza
+    const op=bkS(r[iO]).trim(),det=bkS(r[iDt]).trim(),cat=bkS(r[iC]).trim(),cur=(bkS(r[iV]).trim()||'EUR').toUpperCase();
+    if(!(cur==='EUR'||/^\d+$/.test(cur))){skipped++;continue;}   // codice numerico (es. 392 = JPY) = valuta originale: l'importo e' gia' in euro
+    const carta=iA>=0&&/\*{3,}/.test(bkS(r[iA]));
     let categoria,tipo;
     if(BK_INTESA[cat])[categoria,tipo]=BK_INTESA[cat];
     else{categoria=cat||'Altro';tipo=v>0?'reddito':'spesa';}
     if(/Bonifici in uscita|Bonifico/i.test(cat+' '+op)&&BK_NOMI.io.test(op+' '+det)){categoria='Bonifico inviato';tipo='giroconto';}
     else if(cat==='Bonifici in uscita'){categoria='Bonifico inviato';tipo='spesa';}
+    if(carta&&/^Ricarica$/i.test(op)){categoria='Ricarica';tipo='giroconto';}   // lato carta di una ricarica: l'altro lato e' sul conto
     const useDet=det&&!/^(effettuato il|cod\.? ?disp)/i.test(det)&&det!==op;
-    const desc=(useDet?op+' · '+det:op).slice(0,80);
-    rows.push({persona:'Martina',data,fonte:'Martina',canale:'Conto Martina',descrizione:desc,fpDesc:op,importo_orig:v,valuta:'EUR',importo_eur:v,categoria,tipo,conta:bkConta(tipo)});
+    const desc=(useDet?op+' \u00b7 '+det:op).replace(/\s+/g,' ').slice(0,80);
+    rows.push({persona:'Martina',data,fonte:'Martina',canale:carta?'Carta Martina':'Conto Martina',descrizione:desc,fpDesc:op,importo_orig:v,valuta:'EUR',importo_eur:v,categoria,tipo,conta:bkConta(tipo)});
   }
-  return{rows,skipped};
+  rows.forEach(r=>{r.fpDesc=r.fpDesc.replace(/:/g,'').replace(/\s+/g,' ').trim();});
+  // Periodo del file -> mesi di cui il dettaglio delle CARTE e' completo (compreso il primo mese anche se parziale)
+  let ini='',fine='';
+  for(const r of grid.slice(0,hi))for(let i=0;i<r.length;i++)if(/^Periodo di riferimento/i.test(bkS(r[i]).trim())){
+    const m=bkS(r[i+1]).match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);if(m){ini=bkDate(m[1]);fine=bkDate(m[2]);}
+  }
+  const coverage=[];
+  if(ini&&fine&&rows.some(r=>r.canale==='Carta Martina')){
+    const full=bkMonthsWithin(ini,fine);
+    if(ini.slice(8,10)!=='01'&&!full.includes(ini.slice(0,7)))coverage.push('M:'+ini.slice(0,7));
+    full.forEach(m=>coverage.push('M:'+m));
+  }
+  return{rows,skipped,nonContab,coverage};
 }
 
 /* ---- Carta Ego (estratto conto carta di credito Credem) ---- */
@@ -1014,12 +1031,32 @@ function bkCartaEgo(grid){
   return{rows,skipped:all.length-body.length,doppie,coverage};
 }
 // L'addebito mensile Carta Ego nel c/c paga le spese del mese prima: se di quel mese c'e' il dettaglio, l'addebito diventa giroconto
-const bkIsLump=r=>r.canale==='Carta Ego'&&r.tipo==='spesa'&&/ADDEBITO MESE CARTA EGO/i.test(r.descrizione||'');
+const bkLumpKind=r=>r.tipo!=='spesa'?null:(r.canale==='Carta Ego'&&/ADDEBITO MESE CARTA EGO/i.test(r.descrizione||'')?'ego':(r.persona==='Martina'&&/Addebito Saldo E\/c Carta Di Credito/i.test(r.fpDesc||r.descrizione||'')?'martina':null));
+const bkIsLump=r=>bkLumpKind(r)!==null;
+const bkLumpKey=r=>(bkLumpKind(r)==='martina'?'M:':'')+bkPrevMonth(r.data);
 function bkNeutralize(newRows,dbRows,cov){
-  const hit=r=>bkIsLump(r)&&cov.has(bkPrevMonth(r.data)),upd=[];
-  for(const r of newRows)if(hit(r)){r.tipo='giroconto';r.categoria='Addebito Carta Ego';}
-  for(const r of dbRows)if(hit(r))upd.push(r);
+  const hit=r=>bkIsLump(r)&&cov.has(bkLumpKey(r)),cat=r=>bkLumpKind(r)==='martina'?'Addebito carta di credito':'Addebito Carta Ego',upd=[];
+  for(const r of newRows)if(hit(r)){const k=bkLumpKind(r),c=cat(r);r.kind=k;r.tipo='giroconto';r.categoria=c;r.neutral=true;}
+  for(const r of dbRows)if(hit(r))upd.push({fingerprint:r.fingerprint,data:r.data,importo_eur:r.importo_eur,categoria:cat(r),kind:bkLumpKind(r)});
   return upd;
+}
+// Scarto tra un addebito neutralizzato e le spese di dettaglio del mese prima (per segnalare periodi parziali)
+function bkLumpGaps(lumps,detailRows){
+  const per={};
+  for(const l of lumps){
+    if(l.kind!=='martina')continue;
+    const m=bkPrevMonth(l.data);per[m]=per[m]||{add:0,det:0};
+    per[m].add+=Math.abs(+l.importo_eur);
+  }
+  for(const m in per)per[m].det=Math.abs(detailRows.filter(r=>r.canale==='Carta Martina'&&r.data.slice(0,7)===m&&r.tipo!=='giroconto').reduce((a,r)=>a+(+r.importo_eur),0));
+  // mesi consecutivi si compensano (una spesa di fine mese puo' essere addebitata nel ciclo dopo)
+  const ms=Object.keys(per).sort(),chains=[];let cur=null;
+  const nx=m=>{const[y,mm]=m.split('-').map(Number);return mm===12?bkMonth(y+1,1):bkMonth(y,mm+1);};
+  for(const m of ms){
+    if(cur&&nx(cur.ms[cur.ms.length-1])===m){cur.ms.push(m);cur.add+=per[m].add;cur.det+=per[m].det;}
+    else{cur={ms:[m],add:per[m].add,det:per[m].det};chains.push(cur);}
+  }
+  return chains.map(c=>({mese:c.ms.length>1?c.ms[0]+' \u2192 '+c.ms[c.ms.length-1]:c.ms[0],addebito:c.add,dettaglio:c.det,gap:c.add-c.det})).filter(g=>Math.abs(g.gap)>1);
 }
 
 /* ---- Foglio "Movimenti" gia' elaborato (formato precedente) ---- */
@@ -1057,6 +1094,12 @@ async function bkParseFile(f,mem,fx){
 }
 // Impronta anti-duplicati: identica a quella dello storico; la 2a, 3a... riga uguale nello stesso import prende il suffisso #2, #3
 // Righe uguali in file DIVERSI (r.src) sono la stessa operazione (download sovrapposti): contate una sola volta
+// Intesa scrive i nomi in modo diverso tra un export e l'altro (trattini, due punti, spazi): per Martina si confronta la forma normalizzata
+function bkFpNorm(fp){
+  if(!/^Martina\|/.test(fp))return fp;
+  const p=fp.split('|'),d=p.slice(3).join('|'),m=d.match(/#(\d+)$/),suf=m?'#'+m[1]:'';
+  return p.slice(0,3).join('|')+'|'+(m?d.slice(0,-m[0].length):d).toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g,'')+suf;
+}
 function bkFingerprints(rows){
   const seen={},uniq=new Set(),out=[];
   for(const r of rows){
@@ -1098,7 +1141,7 @@ async function spLoadNomi(){
   catch(e){bkSetNomi(null);}
 }
 function bkRanges(ms){
-  const a=[...ms].sort(),out=[],nx=m=>{const[y,mm]=m.split('-').map(Number);return mm===12?bkMonth(y+1,1):bkMonth(y,mm+1);};
+  const a=[...new Set([...ms].map(x=>String(x).replace(/^M:/,'')))].sort(),out=[],nx=m=>{const[y,mm]=m.split('-').map(Number);return mm===12?bkMonth(y+1,1):bkMonth(y,mm+1);};
   let s=null,p=null;
   for(const m of a){
     if(s===null){s=p=m;}
@@ -1132,10 +1175,10 @@ async function spImpFiles(e){
     const cartaIn=parsed.some(p=>p.kind==='cartaego'),covOld=await spLoadCov(),cov=new Set(covOld);
     parsed.forEach(p=>(p.coverage||[]).forEach(m=>cov.add(m)));
     const upd=bkNeutralize(all,spState.rows,cov);
-    const have=new Set(spState.rows.map(r=>r.fingerprint)),nuovi=all.filter(r=>!have.has(r.fingerprint));
+    const have=new Set(spState.rows.map(r=>bkFpNorm(r.fingerprint))),nuovi=all.filter(r=>!have.has(bkFpNorm(r.fingerprint)));
     const covChanged=cov.size!==covOld.length;
     spState.impRecs=nuovi.map(r=>({fingerprint:r.fingerprint,persona:r.persona,data:r.data,fonte:r.fonte,canale:r.canale,descrizione:r.descrizione,importo_orig:r.importo_orig,valuta:r.valuta,importo_eur:r.importo_eur,categoria:r.categoria,tipo:r.tipo,conta:r.conta}));
-    spState.impUpd=upd;spState.impCov=[...cov].sort();spState.impCovChanged=covChanged;
+    spState.impAll=all;spState.impLumps=[...upd,...nuovi.filter(r=>r.neutral)];spState.impUpd=upd;spState.impCov=[...cov].sort();spState.impCovChanged=covChanged;
     prev.innerHTML=spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn);
     const n=nuovi.length,extra=upd.length>0||covChanged;
     btn.disabled=!(n||extra);btn.textContent=n?'Salva '+n+' movimenti':(extra?'Applica':'Salva');
@@ -1151,6 +1194,7 @@ function spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn){
     if(p.coverage&&p.coverage.length)x+='<br><span class="dim">dettaglio completo per: '+bkRanges(p.coverage)+'</span>';
     if(p.info)x+='<br><span class="dim">'+spEsc(p.info)+'</span>';
     if(p.coperte)x+=' \u00b7 '+p.coperte+' righe gi\u00e0 coperte dal CSV \u00abEstratto conto\u00bb caricato insieme: ignorate';
+    if(p.nonContab)x+=' · '+p.nonContab+' movimenti non ancora contabilizzati ignorati (arriveranno al prossimo scarico)';
     if(p.doppie)x+=' · '+p.doppie+' righe doppie (download sovrapposti) scartate';
     if(p.skipped)x+=' · <span style="color:var(--neg)">'+p.skipped+' ignorate</span>';
     if(p.noFx&&Object.keys(p.noFx).length)x+=' · <span style="color:var(--neg)">senza tasso di cambio, escluse: '+Object.entries(p.noFx).map(([k,v])=>k+' '+v).join(', ')+'</span>';
@@ -1159,10 +1203,12 @@ function spImpHTML(parsed,tot,cross,nuovi,upd,cov,cartaIn){
   const gia=tot-nuovi.length;
   let h='<div style="margin-bottom:10px">'+lines+'</div><div style="color:var(--txt);margin-bottom:8px"><b>'+nuovi.length+'</b> movimenti nuovi · '+gia+' già presenti'+(cross?' · '+cross+' presenti in più file (contati una volta)':'')+'</div>';
   // Addebiti mensili Carta Ego sostituiti dal dettaglio
-  const nn=nuovi.filter(r=>r.categoria==='Addebito Carta Ego'&&/ADDEBITO MESE/i.test(r.descrizione)),nSum=[...upd,...nn].reduce((a,r)=>a+(+r.importo_eur),0);
-  if(upd.length||nn.length)h+='<div style="margin-bottom:6px">ℹ Carta Ego: <b>'+(upd.length+nn.length)+' addebiti mensili</b> nel c/c ('+spEur(nSum)+') diventano «giroconto», perché ora c\'è il dettaglio delle spese della carta. '+(upd.length?upd.length+' sono movimenti già nel database e verranno aggiornati.':'')+'</div>';
+  const nn=nuovi.filter(r=>r.neutral),nSum=[...upd,...nn].reduce((a,r)=>a+(+r.importo_eur),0);
+  if(upd.length||nn.length)h+='<div style="margin-bottom:6px">ℹ Carte di credito: <b>'+(upd.length+nn.length)+' addebiti mensili</b> nel c/c ('+spEur(nSum)+') diventano «giroconto», perché ora c\'è il dettaglio delle spese della carta. '+(upd.length?upd.length+' sono movimenti già nel database e verranno aggiornati.':'')+'</div>';
+  const gaps=bkLumpGaps(spState.impLumps||[],spState.impAll||[]);
+  if(gaps.length)h+='<div style="margin-bottom:6px">⚠ Carta di credito di Martina: l\'addebito supera le spese di dettaglio (periodo parziale o spese non nel file): '+gaps.map(g=>g.mese+': '+spEur(g.addebito)+' vs '+spEur(g.dettaglio)+' ('+spEur(g.gap)+' non coperti)').join('; ')+'.</div>';
   if(cartaIn){
-    const left=[...spState.rows,...nuovi].filter(r=>bkIsLump(r)&&!cov.has(bkPrevMonth(r.data)));
+    const left=[...spState.rows,...nuovi].filter(r=>bkLumpKind(r)==='ego'&&!cov.has(bkPrevMonth(r.data)));
     if(left.length)h+='<div style="margin-bottom:6px">⚠ Le spese di questi mesi restano come addebito unico «Carta Ego» (manca il dettaglio): <b>'+bkRanges(new Set(left.map(r=>bkPrevMonth(r.data))))+'</b>. Scarica anche quei periodi dal sito Credem.</div>';
   }
   if(!nuovi.length)return h;
@@ -1186,7 +1232,7 @@ async function spImpSave(){
     if(error){alert('Errore nel salvataggio: '+error.message);ok=false;break;}
   }
   for(const r of (ok?spState.impUpd:[])){
-    const{error}=await sb.from('expenses').update({tipo:'giroconto',categoria:'Addebito Carta Ego'}).eq('fingerprint',r.fingerprint);
+    const{error}=await sb.from('expenses').update({tipo:'giroconto',categoria:r.categoria||'Addebito Carta Ego'}).eq('fingerprint',r.fingerprint);
     if(error){alert('Errore nell\'aggiornamento degli addebiti Carta Ego: '+error.message);ok=false;break;}
   }
   if(ok&&spState.impCovChanged){
