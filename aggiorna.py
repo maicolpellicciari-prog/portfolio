@@ -90,9 +90,10 @@ ISIN_MAP = {
     'LU0256013359': (None, 'EUR'),             # Eurizon MS 40          → FondiOnline
     'IT0005367757': (None, 'EUR'),             # Eurizon Tesoreria      → FondiOnline
     'LU1529957257': (None, 'EUR'),             # Eurizon Sustainable    → FondiOnline
-    'IT0005599078': (None, 'EUR'),             # Epsilon Difesa         → FondiOnline
     'LU0552385295': (None, 'USD'),             # MS Global Opportunity  → FondiOnline
     'IT0005635583': (None, 'EUR'),             # BTP 3.85% 2040         → Borsa Italiana
+    'IT0005240350': (None, 'EUR'),             # BTP 2.45% 2033         → Borsa Italiana
+    'IT0005637399': (None, 'EUR'),             # BTP 2.95% 2030         → Borsa Italiana
 }
 
 # Fondi non quotati → NAV da FondiOnline.it (pagine server-rendered)
@@ -100,13 +101,12 @@ FONDIONLINE_URLS = {
     'LU0256013359': 'https://www.fondionline.it/elenco-fondi/bilanciati-moderati-eur-globali/eurizon-manager-selection-ms-40-LU0256013359.html',
     'IT0005367757': 'https://www.fondionline.it/elenco-fondi/obbligazionari-eur/eurizon-tesoreria-IT0005367757.html',
     'LU1529957257': 'https://www.fondionline.it/elenco-fondi/azionari-internazionali/eurizon-sustainable-global-equities-LU1529957257.html',
-    'IT0005599078': 'https://www.fondionline.it/elenco-fondi/bilanciati-moderati/epsilon-difesa-IT0005599078.html',
     'LU0552385295': 'https://www.fondionline.it/elenco-fondi/azionari-internazionali/morgan-stanley-global-opportunity-LU0552385295.html',
 }
 FONDIONLINE_ISINS = set(FONDIONLINE_URLS.keys())
 
 # BTP → scraper Borsa Italiana
-BORSA_ITALIANA_ISINS = {'IT0005631590', 'IT0005635583'}
+BORSA_ITALIANA_ISINS = {'IT0005631590', 'IT0005635583', 'IT0005240350', 'IT0005637399'}
 
 # ---------------------------------------------------------------------------
 # Lettura dati
