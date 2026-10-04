@@ -63,6 +63,25 @@ header.top .brand span{color:var(--accent)}
 .chartcard h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:10px;font-family:'Inter';font-weight:600}
 .chartwrap{position:relative;height:180px}
 
+/* Analisi allocazione */
+.ana-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.ana-flag{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
+.ana-flag input{width:auto;accent-color:var(--accent)}
+.ana-tot{font-size:12px;color:var(--dim);font-family:'DM Mono'}
+.ana{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:22px}
+.ana .chartcard{padding:14px 16px}
+.al-row{padding:7px 0;border-bottom:1px solid var(--line)}
+.al-row:last-of-type{border-bottom:none}
+.al-row.sub{background:var(--panel2);margin:2px -8px;padding:7px 8px;border-radius:6px;border-bottom:none;font-weight:600}
+.al-top{display:grid;grid-template-columns:1fr auto 56px;gap:10px;align-items:baseline}
+.al-n{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.al-dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+.al-v,.al-p{font-family:'DM Mono';font-size:12px;text-align:right;white-space:nowrap}
+.al-p{color:var(--dim)}
+.al-bar{height:4px;background:var(--panel2);border-radius:2px;margin-top:5px;overflow:hidden}
+.al-bar i{display:block;height:100%;border-radius:2px}
+.al-note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.45}
+
 /* Table */
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .actions button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:8px;font-size:12px}
@@ -185,7 +204,8 @@ const SUPABASE_KEY = "sb_publishable_-gGrlvd2-q2e-oJpUVYtuw_9JJo05yu";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================ STATE ============================
-let state = { eurusd:1.14, last_updated:"", maicol:null, martina:null, storico:{maicol:[],martina:[]}, transactions:[] };
+let state = { eurusd:1.14, last_updated:"", maicol:null, martina:null, storico:{maicol:[],martina:[]}, transactions:[],
+  showExtra:(()=>{ try{ return localStorage.getItem('showExtra')==='1'; }catch(e){ return false; } })() };
 let currentTab = "maicol";
 let charts = {};
 
@@ -272,20 +292,6 @@ function totals(holdings, cash_items, pension_items){
   return { invested, cost, cassa, pensione, pl, plpct: cost? pl/cost*100:0, total: invested+cassa+pensione };
 }
 
-function geoAgg(holdings){
-  const g = {};
-  holdings.forEach(h=>{
-    const v = valEur(h);
-    if(h.geo_breakdown && typeof h.geo_breakdown==='object'){
-      for(const k in h.geo_breakdown){ g[k]=(g[k]||0)+v*(h.geo_breakdown[k]/100); }
-    } else { const k=h.geo||'Altro'; g[k]=(g[k]||0)+v; }
-  });
-  return g;
-}
-function keyAgg(holdings, field){
-  const g={}; holdings.forEach(h=>{ const k=h[field]||'—'; g[k]=(g[k]||0)+valEur(h); }); return g;
-}
-
 
 // Ultimo aggiornamento prezzi: il bot gira lun-ven alle 19:30 UTC. Verde = in regola, giallo = in ritardo, rosso = saltato.
 function lastExpectedRun(){
@@ -323,9 +329,9 @@ function render(){
   else if(currentTab==='movimenti') v.innerHTML=movimentiHTML();
   else if(currentTab==='spese'){ renderSpese(); return; }
   else if(currentTab==='registro'){ renderRegistro(); return; }
-  if(currentTab==='maicol'){ drawDonuts('maicol', state.maicol.holdings); wirePortfolio('maicol'); }
-  if(currentTab==='martina'){ drawDonuts('martina', state.martina.holdings); wirePortfolio('martina'); }
-  if(currentTab==='combinato'){ drawDonuts('comb', [...state.maicol.holdings,...state.martina.holdings]); }
+  if(currentTab==='maicol'){ wirePortfolio('maicol'); wireAna(); }
+  if(currentTab==='martina'){ wirePortfolio('martina'); wireAna(); }
+  if(currentTab==='combinato'){ wireAna(); }
   if(currentTab==='storico'){ drawStorico(); wireStorico(); }
 }
 
@@ -337,15 +343,6 @@ function kpiRow(t, withPension){
     <div class="kpi"><div class="lab">Cassa</div><div class="val">€${money(t.cassa)}</div></div>
     ${withPension?`<div class="kpi"><div class="lab">Pensione</div><div class="val">€${money(t.pensione)}</div></div>`:''}
     <div class="kpi"><div class="lab">Totale</div><div class="val">€${money(t.total)}</div></div>
-  </div>`;
-}
-
-function donutCards(pref){
-  return `<div class="charts">
-    <div class="chartcard"><h3>Strumento</h3><div class="chartwrap"><canvas id="${pref}-detail"></canvas></div></div>
-    <div class="chartcard"><h3>Categoria</h3><div class="chartwrap"><canvas id="${pref}-type"></canvas></div></div>
-    <div class="chartcard"><h3>Geografia</h3><div class="chartwrap"><canvas id="${pref}-geo"></canvas></div></div>
-    <div class="chartcard"><h3>Asset</h3><div class="chartwrap"><canvas id="${pref}-asset"></canvas></div></div>
   </div>`;
 }
 
@@ -394,7 +391,7 @@ function portfolioHTML(pf){
         <button data-act="snapshot">Salva snapshot</button>
         <button data-act="export">Esporta Excel</button>
        </div>`
-    + donutCards(pf)
+    + analysisHTML(d.holdings, d.pension_items)
     + positionsTable(pf)
     + cashPanel(pf)
     + pensionPanel(pf);
@@ -405,7 +402,7 @@ function combinedHTML(){
   const cash=[...state.maicol.cash_items,...state.martina.cash_items];
   const pens=[...state.maicol.pension_items,...state.martina.pension_items];
   const t=totals(hs,cash,pens);
-  return `<h2 style="margin-bottom:16px">Patrimonio combinato</h2>`+kpiRow(t,true)+donutCards('comb');
+  return `<h2 style="margin-bottom:16px">Patrimonio combinato</h2>`+kpiRow(t,true)+analysisHTML(hs,pens);
 }
 
 // ---- storico ----
@@ -435,19 +432,133 @@ function movimentiHTML(){
 }
 
 // ============================ CHARTS ============================
-const PALETTE=['#e3b23c','#38bdf8','#34d399','#f87171','#a78bfa','#fb923c','#22d3ee','#94a3b8','#f472b6','#84cc16'];
-function donut(id, obj){
-  const el=document.getElementById(id); if(!el) return;
-  const labels=Object.keys(obj), data=Object.values(obj);
-  charts[id]=new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:PALETTE,borderColor:'#161922',borderWidth:2}]},
-    options:{cutout:'62%',plugins:{legend:{position:'right',labels:{color:'#8a93a6',font:{size:10,family:'DM Mono'},boxWidth:10,padding:6}},
-      tooltip:{callbacks:{label:c=>` ${c.label}: €${money(c.raw)}`}}}}});
+// ============================ ANALISI ALLOCAZIONE ============================
+// Tipologia di ogni strumento per ISIN. Per i fondi misti la ripartizione viene dai documenti in dettaglio_fondi/ (dati al 30/06/2026).
+const AC = {
+  glob:  {label:'Azionario globale',            color:'#38bdf8'},
+  them:  {label:'Azionario tematico',           color:'#22d3ee'},
+  single:{label:'Azioni singole',               color:'#a78bfa'},
+  em:    {label:'Azionario emergenti / Cina',   color:'#fb923c'},
+  lux:   {label:'EssilorLuxottica (azioni aziendali)', color:'#f472b6'},
+  bond:  {label:'Obbligazionario',              color:'#34d399'},
+  liq:   {label:'Monetario',                    color:'#84cc16'},
+  comm:  {label:'Materie prime',                color:'#e3b23c'},
+  crypto:{label:'Crypto',                       color:'#f87171'},
+  other: {label:'Altro',                        color:'#64748b'},
+  pens:  {label:'Fondi pensione',               color:'#94a3b8'},
+};
+const ASSET_CLASS = {
+  'LU1681043599':{glob:1}, 'IE00B4L5Y983':{glob:1}, 'LU0552385295':{glob:1}, 'LU1529957257':{glob:1},
+  'IE00BM67HV82':{them:1}, 'IE00BM67HK77':{them:1}, 'IE00BYZK4552':{them:1},
+  'LU1437017350':{em:1}, 'IE00B4L5YC18':{em:1}, 'LU1841731745':{em:1}, 'IE00BJ5JPG56':{em:1},
+  'IT0000380664':{glob:.522, bond:.456, liq:.022},   // Euromobiliare Flessibile 60: esposizione netta 52,2% azioni / 45,6% obbligazioni
+  'LU0256013359':{glob:.4, bond:.6},                 // Eurizon Manager Selection 40: benchmark 40% MSCI World / 60% obbligazioni
+  'IT0005367757':{liq:1},                            // Eurizon Tesoreria Euro: BOT e T-bill
+  'IE00B579F325':{comm:1}, 'JE00B1VS3333':{comm:1}, 'BTC':{crypto:1},
+  'FR0000121667':{lux:1},
+};
+const ASSET_FALLBACK = {'Azione':'single','BTP/Bond':'bond','ETF Commodity':'comm','Crypto':'crypto','ETF Azionario':'glob'};
+const isPensionHolding = h => /previmoda/i.test(h.name||'') || h.isin==='RUBINO AZIONARIO';
+const classMix = h => isPensionHolding(h) ? {pens:1} : (ASSET_CLASS[h.isin] || {[ASSET_FALLBACK[h.asset]||'other']:1});
+const isExtraHolding = h => { const m=classMix(h); return !!(m.pens||m.lux); };
+const GEO_LABEL = {'Commodity':'Materie prime (non geografico)','Crypto':'Crypto (non geografico)'};
+const GEO_COLORS = ['#38bdf8','#e3b23c','#34d399','#a78bfa','#fb923c','#f472b6','#22d3ee','#84cc16','#f87171','#94a3b8'];
+
+// Primi 10 titoli di ogni fondo/ETF (% del fondo). Fonti: PDF in dettaglio_fondi/ (30/06/2026), factsheet MS Global Opportunity, justETF (31/08/2026).
+// Strumenti non elencati qui (oro, argento, Bitcoin, titoli di Stato, azioni dirette) compaiono come posizione unica.
+const LOOK = {
+  'LU1681043599':[['NVIDIA',5.50],['Apple',5.05],['Microsoft',3.88],['Amazon',2.73],['Alphabet (A+C)',3.86],['Broadcom',1.81],['Meta Platforms',1.36],['Micron Technology',1.17],['Tesla',1.14]],
+  'IE00B4L5Y983':[['NVIDIA',5.53],['Apple',5.07],['Microsoft',3.90],['Amazon',2.74],['Alphabet (A+C)',3.88],['Broadcom',1.82],['Meta Platforms',1.37],['Micron Technology',1.18],['Tesla',1.15]],
+  'LU1437017350':[['TSMC',15.17],['Samsung Electronics',8.47],['SK hynix',5.47],['Tencent',2.84],['Alibaba',1.99],['MediaTek',1.38],['Delta Electronics',0.92],['China Construction Bank',0.86],['Hon Hai Precision',0.81]],
+  'IE00B4L5YC18':[['TSMC',15.03],['Samsung Electronics',8.02],['SK hynix',5.44],['Tencent',2.86],['Alibaba',1.97],['MediaTek',1.44],['Delta Electronics',0.92],['China Construction Bank',0.83],['Hon Hai Precision',0.78]],
+  'LU1529957257':[['NVIDIA',4.71],['Apple',4.44],['Microsoft',2.76],['Amazon',2.30],['Broadcom',2.23],['Alphabet (A+C)',3.78],['Micron Technology',1.64],['Eurizon Systematic World Equity (fondo)',1.28]],
+  'LU0552385295':[['SK hynix',9.55],['TSMC',8.66],['ASML',5.65],['Meta Platforms',5.22],['Samsung Electronics',4.48],['Uber',4.47],['Spotify',4.18],['Hermès',3.85],['DoorDash',3.59],['MercadoLibre',3.35]],
+  'IT0000380664':[['Vanguard S&P 500 (ETF)',5.1],['Xtrackers MSCI USA (ETF)',5.0],['SPDR S&P 500 (ETF)',5.0],['Bund 2,6% mag 2041',2.3],['Bund 1% mag 2038',2.0],['Bund 2,6% ago 2035',1.9],['BOT 0% gen 2027',1.8],['US Treasury 4,25% ago 2035',0.8],['US Treasury 3,875% ago 2034',0.8],['US Treasury 3% ago 2048',0.6]],
+  'LU0256013359':[['Eurizon Gov. Euro 5+ anni (ETF)',15.11],['Eurizon EU Fund II Euro Bond',7.64],['Eurizon Equity USA (fondo)',5.64],['Eurizon Gov. Euro 3-5 anni (ETF)',4.66],['Eurizon Gov. Euro 1-3 anni (ETF)',3.33],['Generali Euro Liquidity',2.96],['Eurizon Systematic USA Equity',2.80],['BTP 4,35% nov 2033',2.75]],
+  'IE00BJ5JPG56':[['Tencent',13.89],['Alibaba',9.57],['China Construction Bank',3.99],['ICBC',2.46],['Xiaomi',2.36],['Meituan',1.99],['Bank of China',1.97],['Ping An Insurance',1.74],['PDD Holdings',1.70],['NetEase',1.69]],
+  'LU1841731745':[['Tencent',14.05],['Alibaba',9.56],['China Construction Bank',3.84],['ICBC',2.43],['Xiaomi',2.39],['Meituan',1.96],['PDD Holdings',1.90],['Bank of China',1.90],['Ping An Insurance',1.86],['BYD',1.70]],
+  'IE00BM67HV82':[['Caterpillar',3.62],['GE Aerospace',3.48],['RTX',2.77],['Siemens',2.43],['GE Vernova',2.39],['Schneider Electric',1.87],['Union Pacific',1.77],['Rolls-Royce',1.77],['Boeing',1.69],['Eaton',1.52]],
+  'IE00BM67HK77':[['Eli Lilly',11.04],['Johnson & Johnson',7.55],['AbbVie',5.29],['Merck & Co.',4.29],['UnitedHealth',4.17],['Roche',3.65],['Novartis',3.28],['AstraZeneca',2.88],['Amgen',2.73],['Thermo Fisher',2.71]],
+  'IE00BYZK4552':[['ServiceNow',3.78],['Snowflake',3.78],['Advantest',3.51],['SAP',3.39],['Keyence',3.07],['Siemens',2.97],['Emerson Electric',2.93],['NVIDIA',2.90],['Autodesk',2.86],['AMD',2.71]],
+  'IT0005367757':[['BOT 0% nov 2026',13.20],['BOT 0% dic 2026',12.03],['BOT 0% set 2026',11.56],['BOT 0% giu 2027',5.94],['BOT 0% ott 2026',5.18],['BTF 0% mag 2027',4.32],['BOT 0% apr 2027',3.27],['BUBill 0% dic 2026',3.23],['BOT 0% mar 2027',3.05],['BOT 0% mag 2027',2.41]],
+};
+const CANON = {'US67066G1040':'NVIDIA','NL0010273215':'ASML','US0846707026':'Berkshire Hathaway','FR0000121667':'EssilorLuxottica','US70450Y1038':'PayPal','IT0004176001':'Prysmian','IT0001031084':'Banca Generali'};
+
+const eur0 = n => '€'+Math.round(n||0).toLocaleString('it-IT',{useGrouping:'always'});
+const pct1 = x => x.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const anaPens = pens => state.showExtra ? (pens||[]).reduce((s,x)=>s+(+x.value||0),0) : 0;
+
+function classAgg(hs, pens){
+  const a={};
+  hs.forEach(h=>{ const m=classMix(h), v=valEur(h); for(const k in m) a[k]=(a[k]||0)+v*m[k]; });
+  const p=anaPens(pens); if(p) a.pens=(a.pens||0)+p;
+  return a;
 }
-function drawDonuts(pref, holdings){
-  donut(pref+'-detail', keyAgg(holdings,'detail'));
-  donut(pref+'-type', keyAgg(holdings,'type'));
-  donut(pref+'-geo', geoAgg(holdings));
-  donut(pref+'-asset', keyAgg(holdings,'asset'));
+function geoAggNew(hs, pens){
+  const g={};
+  hs.forEach(h=>{
+    const v=valEur(h);
+    if(isPensionHolding(h)){ g['Fondi pensione (non scomposti)']=(g['Fondi pensione (non scomposti)']||0)+v; return; }
+    if(h.geo_breakdown && typeof h.geo_breakdown==='object'){ for(const k in h.geo_breakdown) g[k]=(g[k]||0)+v*h.geo_breakdown[k]/100; }
+    else { const k=h.geo||'Altro'; g[k]=(g[k]||0)+v; }
+  });
+  const p=anaPens(pens); if(p) g['Fondi pensione (non scomposti)']=(g['Fondi pensione (non scomposti)']||0)+p;
+  return g;
+}
+function topLook(hs){
+  const t={};
+  hs.forEach(h=>{
+    if(isPensionHolding(h)) return;
+    const v=valEur(h), lk=LOOK[h.isin];
+    if(lk) lk.forEach(([n,p])=>{ t[n]=(t[n]||0)+v*p/100; });
+    else { const n=CANON[h.isin]||h.name; t[n]=(t[n]||0)+v; }
+  });
+  return Object.entries(t).sort((a,b)=>b[1]-a[1]).slice(0,10);
+}
+
+function alRows(rows, total){
+  const max=Math.max(1,...rows.filter(r=>!r.sub).map(r=>r.val));
+  return rows.map(r=>`<div class="al-row${r.sub?' sub':''}">
+    <div class="al-top"><span class="al-n" title="${r.label}">${r.dot?`<i class="al-dot" style="background:${r.color}"></i>`:''}${r.label}</span><span class="al-v">${eur0(r.val)}</span><span class="al-p">${pct1(total?r.val/total*100:0)}</span></div>
+    ${r.sub?'':`<div class="al-bar"><i style="width:${Math.max(1,r.val/max*100)}%;background:${r.color}"></i></div>`}
+  </div>`).join('');
+}
+
+function analysisHTML(holdings, pens){
+  const hs = state.showExtra ? holdings : holdings.filter(h=>!isExtraHolding(h));
+  const ca = classAgg(hs, pens), total = Object.values(ca).reduce((s,v)=>s+v,0);
+  if(!total) return `<div class="empty">Nessuna posizione da analizzare.</div>`;
+
+  // 1) tipologia, con subtotale azionario
+  const eqKeys=['glob','them','single','em','lux'], rows=[];
+  eqKeys.forEach(k=>{ if(ca[k]>0.5) rows.push({label:AC[k].label,val:ca[k],color:AC[k].color,dot:true}); });
+  const eq=eqKeys.reduce((s,k)=>s+(ca[k]||0),0);
+  if(eq>0.5) rows.push({label:'Azionario totale',val:eq,color:'#8a93a6',sub:true});
+  ['bond','liq','comm','crypto','other','pens'].forEach(k=>{ if(ca[k]>0.5) rows.push({label:AC[k].label,val:ca[k],color:AC[k].color,dot:true}); });
+
+  // 2) area geografica
+  const ga=geoAggNew(hs,pens), grows=Object.entries(ga).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1])
+    .map(([k,v],i)=>({label:GEO_LABEL[k]||k,val:v,color:GEO_COLORS[i%GEO_COLORS.length],dot:true}));
+
+  // 3) primi 10 titoli (look-through)
+  const trows=topLook(hs).map(([n,v],i)=>({label:`${i+1}. ${n}`,val:v,color:'#e3b23c'}));
+
+  return `<div class="ana-bar">
+      <label class="ana-flag"><input type="checkbox" id="ana-extra"${state.showExtra?' checked':''}> Includi EssilorLuxottica e fondi pensione</label>
+      <span class="ana-tot">Totale analizzato ${eur0(total)} · esclusa la cassa</span>
+    </div>
+    <div class="ana">
+      <div class="chartcard"><h3>Struttura per tipologia</h3>${alRows(rows,total)}
+        <div class="al-note">Fondi misti scomposti con i dati dei PDF: Euromobiliare Flessibile 52,2% azioni / 45,6% obbligazioni; Eurizon Manager Selection 40 al 40% / 60% (da benchmark).${state.showExtra?' I fondi pensione non sono scomposti per tipologia.':''}</div></div>
+      <div class="chartcard"><h3>Area geografica</h3>${alRows(grows,total)}
+        <div class="al-note">Ripartizione dichiarata per ogni strumento (indice per gli ETF, documento del fondo per i fondi).</div></div>
+      <div class="chartcard"><h3>Primi 10 titoli (look-through)</h3>${alRows(trows,total)}
+        <div class="al-note">Include i titoli dentro ETF e fondi, ma solo i loro primi 10: sono valori minimi. Fonti: PDF fondi e factsheet (30/06/2026), justETF (31/08/2026). Oro, argento e Bitcoin contano come posizione unica.</div></div>
+    </div>`;
+}
+function wireAna(){
+  const c=$("#ana-extra"); if(!c) return;
+  c.onchange=()=>{ state.showExtra=c.checked; try{ localStorage.setItem('showExtra',c.checked?'1':'0'); }catch(e){} render(); };
 }
 function drawStorico(){
   ['maicol','martina'].forEach(pf=>{
