@@ -461,8 +461,49 @@ const ASSET_FALLBACK = {'Azione':'single','BTP/Bond':'bond','ETF Commodity':'com
 const isPensionHolding = h => /previmoda/i.test(h.name||'') || h.isin==='RUBINO AZIONARIO';
 const classMix = h => isPensionHolding(h) ? {pens:1} : (ASSET_CLASS[h.isin] || {[ASSET_FALLBACK[h.asset]||'other']:1});
 const isExtraHolding = h => { const m=classMix(h); return !!(m.pens||m.lux); };
-const GEO_LABEL = {'Commodity':'Materie prime (non geografico)','Crypto':'Crypto (non geografico)'};
-const GEO_COLORS = ['#38bdf8','#e3b23c','#34d399','#a78bfa','#fb923c','#f472b6','#22d3ee','#84cc16','#f87171','#94a3b8'];
+// Area geografica. Titoli singoli (azioni, BTP): sede dell'emittente dal prefisso ISIN. ETF e fondi: composizione dichiarata.
+// Aree: Italia, Europa (ex Italia), USA, Giappone, Cina, Altri emergenti, Altri sviluppati, Non geografico.
+const GEO_COLOR = {'Italia':'#34d399','Europa':'#38bdf8','USA':'#e3b23c','Giappone':'#a78bfa','Cina':'#f87171','Altri emergenti':'#fb923c','Altri sviluppati':'#22d3ee','Non geografico':'#8a93a6','Fondi pensione (non scomposti)':'#94a3b8'};
+const GEO_DB = {'USA':'USA','Europa':'Europa','Italia':'Italia','Giappone':'Giappone','Cina/Asia':'Cina','Paesi Emergenti':'Altri emergenti','Altro':'Altri sviluppati','Commodity':'Non geografico','Crypto':'Non geografico','Globale':'Altri sviluppati'};
+// MSCI World al 31/08/2026 (justETF): USA 70,3 · Giappone 5,8 · Regno Unito 3,7 · Canada 3,4 · "altro" 16,8.
+// STIMA: dell'"altro" assegno ~12 a Europa (Francia, Svizzera, Germania, Paesi Bassi...) e ~4,8 ad altri sviluppati (Australia, Hong Kong...).
+const GEO_WORLD = {'USA':70.3,'Giappone':5.8,'Europa':15.7,'Altri sviluppati':8.2};
+// Parte obbligazionaria di Euromobiliare Flessibile: stimata dai primi 10 titoli (Bund 6,2 · BOT 3,5 · Treasury USA 2,2).
+const GEO_FLESS_BOND = {'Europa':52,'Italia':29,'USA':19};
+const GEO_FUND = {
+  'LU1681043599':GEO_WORLD, 'IE00B4L5Y983':GEO_WORLD,                      // ETF World
+  'LU1529957257':GEO_WORLD,                                                // Eurizon Sustainable Global Equity (benchmark MSCI World)
+  'LU1437017350':{'Cina':18.4,'Altri emergenti':81.6}, 'IE00B4L5YC18':{'Cina':18.4,'Altri emergenti':81.6}, // MSCI EM: Cina 18,4% (Taiwan 27, Corea 21, India 11 ...)
+  'LU1841731745':{'Cina':100}, 'IE00BJ5JPG56':{'Cina':100},               // ETF Cina
+  'LU0552385295':{'USA':38.08,'Europa':23.42,'Giappone':1.84,'Altri emergenti':35.19}, // MS Global Opportunity: Nord America; Europa euro + non euro; Pacifico 28,9 + India 4,5 + Sud America 1,8
+  'IT0005367757':{'Italia':88,'Europa':12},                                // Eurizon Tesoreria: BOT italiani 88% dei primi 10, resto BTF/Bubill
+  'IT0000380664':[[.522,GEO_WORLD],[.456,GEO_FLESS_BOND],[.022,{'Europa':100}]],   // Flessibile 60: 52,2% azioni · 45,6% obbligazioni · liquidita'
+  'LU0256013359':[[.4,GEO_WORLD],[.6,{'Italia':53,'Europa':47}]],          // MS 40: 40% azioni · 60% obbligazioni euro (quota Italia dal database)
+};
+const FUND_PREFIX = ['IE','LU','JE'];   // domicili di ETF/fondi: il prefisso ISIN non indica l'area
+const EU_PREFIX = ['NL','FR','DE','ES','BE','AT','FI','PT','GB','CH','SE','DK','NO','LU','IE','GR','PL'];
+function geoMix(h){
+  const m=classMix(h);
+  if((m.comm||m.crypto) && !m.glob && !m.bond) return {'Non geografico':100};
+  const f=GEO_FUND[h.isin];
+  if(f){
+    if(!Array.isArray(f)) return f;
+    const o={}; f.forEach(([w,mix])=>{ const t=Object.values(mix).reduce((s,v)=>s+v,0); for(const k in mix) o[k]=(o[k]||0)+w*mix[k]/t; });
+    return o;
+  }
+  const px=(h.isin||'').slice(0,2).toUpperCase();
+  if(!FUND_PREFIX.includes(px)){
+    if(px==='IT') return {'Italia':100};
+    if(px==='US') return {'USA':100};
+    if(px==='JP') return {'Giappone':100};
+    if(px==='CN'||px==='HK') return {'Cina':100};
+    if(EU_PREFIX.includes(px)) return {'Europa':100};
+  }
+  if(h.geo_breakdown && typeof h.geo_breakdown==='object'){          // ripiego: dato del database
+    const o={}; for(const k in h.geo_breakdown){ const g=GEO_DB[k]||'Altri sviluppati'; o[g]=(o[g]||0)+h.geo_breakdown[k]; } return o;
+  }
+  return {[GEO_DB[h.geo]||'Altri sviluppati']:100};
+}
 
 // Primi 10 titoli di ogni fondo/ETF (% del fondo). Fonti: PDF in dettaglio_fondi/ (30/06/2026), factsheet MS Global Opportunity, justETF (31/08/2026).
 // Strumenti non elencati qui (oro, argento, Bitcoin, titoli di Stato, azioni dirette) compaiono come posizione unica.
@@ -495,14 +536,14 @@ function classAgg(hs, pens){
   return a;
 }
 function geoAggNew(hs, pens){
-  const g={};
+  const g={}, PK='Fondi pensione (non scomposti)';
   hs.forEach(h=>{
     const v=valEur(h);
-    if(isPensionHolding(h)){ g['Fondi pensione (non scomposti)']=(g['Fondi pensione (non scomposti)']||0)+v; return; }
-    if(h.geo_breakdown && typeof h.geo_breakdown==='object'){ for(const k in h.geo_breakdown) g[k]=(g[k]||0)+v*h.geo_breakdown[k]/100; }
-    else { const k=h.geo||'Altro'; g[k]=(g[k]||0)+v; }
+    if(isPensionHolding(h)){ g[PK]=(g[PK]||0)+v; return; }
+    const mix=geoMix(h), t=Object.values(mix).reduce((s,x)=>s+x,0)||1;
+    for(const k in mix) g[k]=(g[k]||0)+v*mix[k]/t;
   });
-  const p=anaPens(pens); if(p) g['Fondi pensione (non scomposti)']=(g['Fondi pensione (non scomposti)']||0)+p;
+  const p=anaPens(pens); if(p) g[PK]=(g[PK]||0)+p;
   return g;
 }
 function topLook(hs){
@@ -538,7 +579,7 @@ function analysisHTML(holdings, pens){
 
   // 2) area geografica
   const ga=geoAggNew(hs,pens), grows=Object.entries(ga).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1])
-    .map(([k,v],i)=>({label:GEO_LABEL[k]||k,val:v,color:GEO_COLORS[i%GEO_COLORS.length],dot:true}));
+    .map(([k,v])=>({label:k,val:v,color:GEO_COLOR[k]||'#64748b',dot:true}));
 
   // 3) primi 10 titoli (look-through)
   const trows=topLook(hs).map(([n,v],i)=>({label:`${i+1}. ${n}`,val:v,color:'#e3b23c'}));
@@ -551,7 +592,7 @@ function analysisHTML(holdings, pens){
       <div class="chartcard"><h3>Struttura per tipologia</h3>${alRows(rows,total)}
         <div class="al-note">Fondi misti scomposti con i dati dei PDF: Euromobiliare Flessibile 52,2% azioni / 45,6% obbligazioni; Eurizon Manager Selection 40 al 40% / 60% (da benchmark).${state.showExtra?' I fondi pensione non sono scomposti per tipologia.':''}</div></div>
       <div class="chartcard"><h3>Area geografica</h3>${alRows(grows,total)}
-        <div class="al-note">Ripartizione dichiarata per ogni strumento (indice per gli ETF, documento del fondo per i fondi).</div></div>
+        <div class="al-note">Azioni e titoli di Stato: paese dell'emittente. ETF e fondi: composizione dichiarata (justETF 31/08/2026, PDF e factsheet). Europa = esclusa l'Italia. Stime: la quota "altro" del MSCI World e la parte obbligazionaria dei fondi misti.</div></div>
       <div class="chartcard"><h3>Primi 10 titoli (look-through)</h3>${alRows(trows,total)}
         <div class="al-note">Include i titoli dentro ETF e fondi, ma solo i loro primi 10: sono valori minimi. Fonti: PDF fondi e factsheet (30/06/2026), justETF (31/08/2026). Oro, argento e Bitcoin contano come posizione unica.</div></div>
     </div>`;
