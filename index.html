@@ -3,163 +3,185 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f2f2f7">
 <title>Portafoglio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#0e1015; --panel:#161922; --panel2:#1d212c; --line:#262b38;
-  --txt:#e8eaf0; --dim:#8a93a6; --accent:#e3b23c; --accent2:#38bdf8; --pos:#34d399; --neg:#f87171;
+  --bg:#f2f2f7; --panel:#ffffff; --panel2:#f2f2f7; --line:#ececf0; --line2:#d8d8de;
+  --fill:rgba(118,118,128,.12); --fill2:rgba(118,118,128,.2);
+  --txt:#1c1c1e; --dim:#6e6e73; --accent:#007aff; --accent-soft:rgba(0,122,255,.1); --accent2:#5ac8fa;
+  --pos:#1e8e3e; --neg:#d93025;
+  --r-xl:24px; --r-lg:20px; --r-md:14px; --r-sm:10px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Inter',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5}
-.mono{font-family:'DM Mono',monospace}
-h1,h2,h3,.disp{font-family:'Syne',sans-serif;letter-spacing:-.01em}
+body{background:var(--bg);color:var(--txt);font-family:var(--font);font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.mono{font-variant-numeric:tabular-nums}
+h1,h2,h3,.disp{letter-spacing:-.02em;font-weight:700}
 .pos{color:var(--pos)} .neg{color:var(--neg)} .dim{color:var(--dim)}
-button{font-family:inherit;cursor:pointer}
-input,select{font-family:'DM Mono',monospace;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 10px;border-radius:8px;font-size:13px;width:100%}
-input:focus,select:focus{outline:none;border-color:var(--accent)}
+button{font-family:inherit;cursor:pointer;transition:background .15s,transform .1s,filter .15s,box-shadow .15s}
+button:active{transform:scale(.97)}
+input,select{font-family:inherit;background:var(--fill);border:1px solid transparent;color:var(--txt);padding:9px 12px;border-radius:var(--r-sm);font-size:14px;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
 
 /* Login */
 #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
-#login .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:34px;width:340px;max-width:92vw}
-#login h1{font-size:24px;margin-bottom:4px}
-#login p{color:var(--dim);font-size:13px;margin-bottom:22px}
-#login label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:14px 0 6px}
-#login button{width:100%;margin-top:22px;background:var(--accent);color:#1a1200;border:none;padding:12px;border-radius:10px;font-weight:600;font-size:14px}
-#login .err{color:var(--neg);font-size:12px;margin-top:14px;min-height:16px;font-family:'DM Mono',monospace}
+#login .card{background:var(--panel);border-radius:var(--r-xl);box-shadow:var(--shadow);padding:36px 32px;width:360px;max-width:92vw}
+#login h1{font-size:28px;margin-bottom:4px}
+#login p{color:var(--dim);font-size:14px;margin-bottom:22px}
+#login label{display:block;font-size:12px;font-weight:600;color:var(--dim);margin:14px 0 6px}
+#login button{width:100%;margin-top:24px;background:var(--accent);color:#fff;border:none;padding:13px;border-radius:var(--r-md);font-weight:600;font-size:15px}
+#login button:hover{filter:brightness(1.06)}
+#login .err{color:var(--neg);font-size:12px;margin-top:14px;min-height:16px}
 
 /* Shell */
-#app{display:none;max-width:1160px;margin:0 auto;padding:20px 18px 60px}
+#app{display:none;max-width:1160px;margin:0 auto;padding:22px 18px 60px}
 header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
-header.top .brand{font-family:'Syne';font-weight:800;font-size:20px}
+header.top .brand{font-weight:800;font-size:26px;letter-spacing:-.03em}
 header.top .brand span{color:var(--accent)}
-.headright{display:flex;align-items:center;gap:12px}
-.eurusd{font-size:12px;color:var(--dim)}
-.eurusd b{color:var(--txt)}
-.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:8px;font-size:12px}
-.ghost:hover{border-color:var(--accent)}
-.status{font-size:11px;color:var(--dim);font-family:'DM Mono';min-width:60px;text-align:right}
+.headright{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.eurusd{font-size:12px;color:var(--dim);background:var(--panel);padding:6px 12px;border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.eurusd b{color:var(--txt);font-weight:600}
+.ghost{background:var(--fill);border:none;color:var(--txt);padding:8px 15px;border-radius:999px;font-size:13px;font-weight:500}
+.ghost:hover{background:var(--fill2)}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border-radius:50%;background:var(--panel);border:none;color:var(--txt);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.iconbtn:hover{background:#fafafc}
+.iconbtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.iconbtn.on{background:var(--accent);color:#fff}
+.status{font-size:11px;color:var(--dim);min-width:60px;text-align:right}
 
-/* Tabs */
-.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
-.tab{background:none;border:none;color:var(--dim);padding:10px 14px;font-size:14px;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
-.tab.active{color:var(--txt);border-bottom-color:var(--accent)}
+/* Tabs: controllo segmentato */
+.tabs{display:flex;gap:2px;background:var(--fill);padding:3px;border-radius:14px;margin-bottom:22px;overflow-x:auto;width:fit-content;max-width:100%}
+.tabs{scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:none;color:var(--dim);padding:8px 16px;font-size:14px;font-weight:500;border-radius:11px;white-space:nowrap}
+.tab:hover{color:var(--txt)}
+.tab.active{background:#fff;color:var(--txt);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
 
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-.kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:6px}
-.kpi .val{font-family:'DM Mono';font-size:20px;font-weight:500}
-.kpi .sub{font-size:12px;font-family:'DM Mono';margin-top:2px}
+.kpi{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:16px 18px}
+.kpi .lab{font-size:12px;font-weight:500;color:var(--dim);margin-bottom:6px}
+.kpi .val{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.kpi .sub{font-size:12.5px;font-weight:500;margin-top:2px}
 
 /* Charts */
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:22px}
-.chartcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-.chartcard h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:10px;font-family:'Inter';font-weight:600}
+.chartcard{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:16px}
+.chartcard h3{font-size:13px;color:var(--dim);margin-bottom:10px;font-weight:600;letter-spacing:0}
 .chartwrap{position:relative;height:180px}
 
 /* Analisi allocazione */
 .ana-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
 .ana-flag{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
 .ana-flag input{width:auto;accent-color:var(--accent)}
-.ana-tot{font-size:12px;color:var(--dim);font-family:'DM Mono'}
+.ana-tot{font-size:12px;color:var(--dim)}
 .ana{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:22px}
-.ana .chartcard{padding:14px 16px}
-.al-row{padding:7px 0;border-bottom:1px solid var(--line)}
+.ana .chartcard{padding:16px 18px}
+.al-row{padding:8px 0;border-bottom:1px solid var(--line)}
 .al-row:last-of-type{border-bottom:none}
-.al-row.sub{background:var(--panel2);margin:2px -8px;padding:7px 8px;border-radius:6px;border-bottom:none;font-weight:600}
+.al-row.sub{background:var(--panel2);margin:2px -10px;padding:8px 10px;border-radius:10px;border-bottom:none;font-weight:600}
 .al-top{display:grid;grid-template-columns:1fr auto 56px;gap:10px;align-items:baseline}
 .al-n{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.al-dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
-.al-v,.al-p{font-family:'DM Mono';font-size:12px;text-align:right;white-space:nowrap}
+.al-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.al-v,.al-p{font-size:12.5px;text-align:right;white-space:nowrap}
 .al-p{color:var(--dim)}
-.al-bar{height:4px;background:var(--panel2);border-radius:2px;margin-top:5px;overflow:hidden}
-.al-bar i{display:block;height:100%;border-radius:2px}
-.al-note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.45}
+.al-bar{height:6px;background:var(--fill);border-radius:3px;margin-top:6px;overflow:hidden}
+.al-bar i{display:block;height:100%;border-radius:3px}
+.al-note{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.45}
 
 /* Table */
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.actions button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:8px;font-size:12px}
-.actions button:hover{border-color:var(--accent)}
-.actions button.primary{background:var(--accent);color:#1a1200;border-color:var(--accent);font-weight:600}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:20px}
-.panel .phead{padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Syne';font-weight:700;font-size:14px}
+.actions button{background:var(--panel);border:none;box-shadow:0 1px 2px rgba(0,0,0,.08);color:var(--txt);padding:9px 15px;border-radius:999px;font-size:13px;font-weight:500}
+.actions button:hover{background:#fafafc}
+.actions button.primary{background:var(--accent);color:#fff;font-weight:600;box-shadow:none}
+.actions button.primary:hover{filter:brightness(1.06)}
+.panel{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+.panel .phead{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:700;font-size:15px;letter-spacing:-.01em}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:right;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+th{text-align:right;padding:10px 12px;font-size:11px;color:var(--dim);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap;background:#fafafc}
 th:first-child{text-align:left}
-td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:'DM Mono';white-space:nowrap}
-td:first-child{text-align:left;font-family:'Inter'}
+td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+td:first-child{text-align:left}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--panel2)}
-.nm{font-weight:500}
-.isin{font-size:11px;color:var(--dim);font-family:'DM Mono'}
-.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);margin-left:6px;font-family:'DM Mono'}
-.edit{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:4px 8px;font-size:11px}
-.edit:hover{border-color:var(--accent);color:var(--txt)}
+tr:hover td{background:#fafafc}
+.nm{font-weight:600}
+.isin{font-size:11px;color:var(--dim)}
+.badge{display:inline-block;font-size:10.5px;font-weight:500;padding:2px 8px;border-radius:999px;background:var(--fill);color:var(--dim);margin-left:6px}
+.edit{background:var(--fill);border:none;color:var(--dim);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:500}
+.edit:hover{background:var(--fill2);color:var(--txt)}
 .cashgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:14px}
-.cashcell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.cashcell{background:var(--panel2);border-radius:var(--r-md);padding:13px 14px}
 .cashcell .cn{font-size:12px;color:var(--dim);margin-bottom:4px}
-.cashcell .cv{font-family:'DM Mono';font-size:16px}
+.cashcell .cv{font-size:17px;font-weight:600}
 
 /* Modal */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .overlay.on{display:flex}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:440px;max-width:96vw;max-height:90vh;overflow:auto}
-.modal h2{font-size:18px;margin-bottom:16px}
-.modal label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:12px 0 5px}
+.modal{background:var(--panel);border-radius:var(--r-xl);box-shadow:0 20px 60px rgba(0,0,0,.25);padding:24px;width:460px;max-width:96vw;max-height:90vh;overflow:auto}
+.modal h2{font-size:20px;margin-bottom:16px}
+.modal label{display:block;font-size:12px;font-weight:600;color:var(--dim);margin:12px 0 5px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modal .foot{display:flex;gap:10px;margin-top:20px}
-.modal .foot button{flex:1;padding:11px;border-radius:9px;font-size:13px;font-weight:600;border:none}
-.modal .foot .cancel{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
-.modal .foot .save{background:var(--accent);color:#1a1200}
-.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;margin-bottom:6px}
-.seg button{flex:1;background:none;border:none;color:var(--dim);padding:7px;border-radius:6px;font-size:12px}
-.seg button.on{background:var(--accent);color:#1a1200;font-weight:600}
-.minirow{display:grid;grid-template-columns:1fr 100px 30px;gap:8px;align-items:center;margin-bottom:8px}
-.minirow button{background:var(--panel2);border:1px solid var(--line);color:var(--neg);border-radius:7px;padding:6px}
-.addrow{background:var(--panel2);border:1px dashed var(--line);color:var(--dim);width:100%;padding:8px;border-radius:8px;font-size:12px;margin-top:4px}
+.modal .foot{display:flex;gap:10px;margin-top:22px}
+.modal .foot button{flex:1;padding:12px;border-radius:var(--r-md);font-size:14px;font-weight:600;border:none}
+.modal .foot .cancel{background:var(--fill);color:var(--txt)}
+.modal .foot .cancel:hover{background:var(--fill2)}
+.modal .foot .save{background:var(--accent);color:#fff}
+.modal .foot .save:hover{filter:brightness(1.06)}
+.modal .foot button:disabled{opacity:.4;cursor:default;filter:none}
+.seg{display:flex;background:var(--fill);border-radius:12px;padding:3px;margin-bottom:6px}
+.seg button{flex:1;background:none;border:none;color:var(--dim);padding:7px;border-radius:9px;font-size:13px;font-weight:500}
+.seg button.on{background:#fff;color:var(--txt);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.minirow{display:grid;grid-template-columns:1fr 100px 34px;gap:8px;align-items:center;margin-bottom:8px}
+.minirow button{background:var(--fill);border:none;color:var(--neg);border-radius:50%;width:30px;height:30px;padding:0}
+.addrow{background:var(--panel2);border:1px dashed var(--line2);color:var(--dim);width:100%;padding:9px;border-radius:var(--r-sm);font-size:13px;margin-top:4px}
 .empty{padding:40px;text-align:center;color:var(--dim);font-size:13px}
 
 .sp-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
-.sp-seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;flex-wrap:wrap}
-.seg-b{background:none;border:none;color:var(--dim);padding:6px 13px;border-radius:6px;font-size:12px;font-family:inherit;cursor:pointer}
-.seg-b.on{background:var(--accent);color:#1a1200;font-weight:600}
-.sp-act{background:var(--accent);color:#1a1200;border:none;padding:9px 13px;border-radius:9px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer}
-.sp-act.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+.sp-seg{display:inline-flex;background:var(--fill);border-radius:12px;padding:3px;flex-wrap:wrap}
+.seg-b{background:none;border:none;color:var(--dim);padding:6px 14px;border-radius:9px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer}
+.seg-b.on{background:#fff;color:var(--txt);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.sp-act{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.sp-act:hover{filter:brightness(1.06)}
+.sp-act.ghost{background:var(--fill);color:var(--txt);border:none;font-weight:500}
+.sp-act.ghost:hover{background:var(--fill2);filter:none}
 .sp-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:4px 0 12px}
-.sp-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--dim);font-family:'DM Mono'}
-.sp-leg span{display:flex;align-items:center;gap:5px}.sp-leg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sp-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--dim)}
+.sp-leg span{display:flex;align-items:center;gap:5px}.sp-leg i{width:10px;height:10px;border-radius:50%;display:inline-block}
 .sp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:780px){.sp-grid{grid-template-columns:1fr}}
-.sp-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-.sp-card h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600;margin-bottom:4px;font-family:'Inter'}
-.sp-sub{font-size:11px;color:var(--dim);margin-bottom:10px;font-family:'DM Mono'}
+.sp-card{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px}
+.sp-card h3{font-size:13px;color:var(--dim);font-weight:600;margin-bottom:4px;letter-spacing:0}
+.sp-sub{font-size:12px;color:var(--dim);margin-bottom:10px}
 .sp-cw{position:relative;height:230px}
-.sp-badge{display:inline-block;font-size:11px;font-family:'DM Mono';padding:2px 8px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);margin-left:6px}
-.sp-dd{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:14px;overflow:hidden;display:none}
-.sp-ddh{padding:11px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-family:'Syne';font-weight:700;font-size:13px}
-.sp-ddh button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer}
+.sp-badge{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--fill);margin-left:6px}
+.sp-dd{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);margin-top:14px;overflow:hidden;display:none}
+.sp-ddh{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
+.sp-ddh button{background:var(--fill);border:none;color:var(--dim);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer}
 .sp-tab{width:100%;border-collapse:collapse;font-size:12.5px}
-.sp-tab th{text-align:right;padding:8px 12px;font-size:10px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--line)}
+.sp-tab th{text-align:right;padding:9px 12px;font-size:11px;color:var(--dim);border-bottom:1px solid var(--line)}
 .sp-tab th:first-child,.sp-tab td:first-child{text-align:left}
-.sp-tab td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-family:'DM Mono'}
-.sp-tab td.t{text-align:left;font-family:'Inter'}
-.sp-note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:11px 14px;margin-top:14px;font-size:12.5px;color:var(--dim)}
+.sp-tab td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right}
+.sp-tab td.t{text-align:left}
+.sp-note{background:var(--accent-soft);border-radius:var(--r-md);padding:12px 16px;margin-top:14px;font-size:13px;color:var(--txt)}
 .rg-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:14px}
-.rg-bar label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:0 0 3px}
-.rg-bar select,.rg-bar input{width:auto;min-width:104px}
+.rg-bar label{display:block;font-size:11px;font-weight:600;color:var(--dim);margin:0 0 3px}
+.rg-bar select,.rg-bar input{width:auto;min-width:104px;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .rg-bar #rg-q{width:100%}
 .rg-bar label.rg-chk{margin:0 4px 8px}
-.rg-chk{display:flex!important;align-items:center;gap:8px;text-transform:none!important;letter-spacing:0!important;font-size:12.5px!important;color:var(--txt)!important}
-.rg-chk input{width:auto!important;min-width:0!important}
+.rg-chk{display:flex!important;align-items:center;gap:8px;font-size:13px!important;font-weight:500!important;color:var(--txt)!important}
+.rg-chk input{width:auto!important;min-width:0!important;box-shadow:none!important;accent-color:var(--accent)}
 .rg-tab td.rg-d{white-space:normal;min-width:200px;max-width:420px}
 .rg-tab tr.rg-off td{opacity:.45}
-.rg-tab .rg-cb{width:auto;cursor:pointer}
+.rg-tab .rg-cb{width:auto;cursor:pointer;accent-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -186,6 +208,7 @@ tr:hover td{background:var(--panel2)}
       <span class="eurusd" id="pricesWrap">Prezzi <b id="pricesAt">—</b></span>
       <span class="eurusd">EUR/USD <b id="eurusd">—</b></span>
       <span class="status" id="status"></span>
+      <button class="iconbtn" id="privBtn" type="button" aria-label="Nascondi gli importi"></button>
       <button class="ghost" id="logout">Esci</button>
     </div>
   </header>
@@ -202,6 +225,7 @@ tr:hover td{background:var(--panel2)}
 const SUPABASE_URL = "https://xrnujmdrtiliiqhntkwj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_-gGrlvd2-q2e-oJpUVYtuw_9JJo05yu";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if(window.Chart){ Chart.defaults.font.family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif"; Chart.defaults.color='#6e6e73'; Chart.defaults.borderColor='#ececf0'; }
 
 // ============================ STATE ============================
 let state = { eurusd:1.14, last_updated:"", maicol:null, martina:null, storico:{maicol:[],martina:[]}, transactions:[],
@@ -210,8 +234,30 @@ let currentTab = "maicol";
 let charts = {};
 
 const $ = s => document.querySelector(s);
-const money = n => (n||0).toLocaleString('it-IT',{maximumFractionDigits:0});
-const money2 = n => (n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+// Importi nascosti: il pulsante con l'occhio in alto a destra. Tutti i formattatori degli importi passano da qui.
+let PRIV = (()=>{ try{ return localStorage.getItem('priv')==='1'; }catch(e){ return false; } })();
+const MASK = '•••••';
+const money = n => PRIV ? MASK : (n||0).toLocaleString('it-IT',{maximumFractionDigits:0});
+const money2 = n => PRIV ? MASK : (n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+const qtyF = (q,d) => PRIV ? MASK : (+q).toLocaleString('it-IT',d===undefined?undefined:{maximumFractionDigits:d});
+const PRIV_ICON = {
+  on:'<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6a12.6 12.6 0 0 1-2.6 3.4M6.5 7.5A12.6 12.6 0 0 0 2.5 12c1 2 4.5 6 9.5 6 1.4 0 2.7-.3 3.8-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  off:'<svg viewBox="0 0 24 24"><path d="M2.5 12C3.5 10 7 6 12 6s8.5 4 9.5 6c-1 2-4.5 6-9.5 6s-8.5-4-9.5-6z"/><circle cx="12" cy="12" r="3"/></svg>'
+};
+function applyPriv(){
+  document.body.classList.toggle('priv',PRIV);
+  const b=document.getElementById('privBtn'); if(!b) return;
+  b.innerHTML = PRIV ? PRIV_ICON.on : PRIV_ICON.off;
+  b.classList.toggle('on',PRIV);
+  b.title = PRIV ? 'Mostra gli importi' : 'Nascondi gli importi';
+  b.setAttribute('aria-pressed',PRIV?'true':'false');
+}
+function togglePriv(){
+  PRIV=!PRIV;
+  try{ localStorage.setItem('priv',PRIV?'1':'0'); }catch(e){}
+  applyPriv();
+  if(document.getElementById('app').style.display==='block') render();
+}
 const setStatus = t => { $("#status").textContent = t; if(t) setTimeout(()=>{if($("#status").textContent===t)$("#status").textContent="";},2500); };
 
 // ============================ AUTH ============================
@@ -229,6 +275,8 @@ $("#li-btn").onclick = async () => {
   enterApp();
 };
 $("#li-pass").addEventListener("keydown", e => { if(e.key==="Enter") $("#li-btn").click(); });
+$("#privBtn").onclick = togglePriv;
+applyPriv();
 $("#logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 async function enterApp(){
@@ -305,7 +353,7 @@ function showPricesAge(){
   if(!state.prices_at){el.textContent="—";wrap.title="Nessun prezzo salvato";return;}
   const d=new Date(state.prices_at),lag=(lastExpectedRun()-d)/36e5;
   el.textContent=d.toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-  el.style.color=lag<=3?'var(--pos)':(lag<=27?'var(--accent)':'var(--neg)');
+  el.style.color=lag<=3?'var(--pos)':(lag<=27?'#b45309':'var(--neg)');
   wrap.title="Ultimo aggiornamento: "+d.toLocaleString('it-IT',{dateStyle:'full',timeStyle:'short'})
     +(lag>3?"\nATTENZIONE: l'aggiornamento automatico di "+lastExpectedRun().toLocaleDateString('it-IT')+" non risulta eseguito.":"")
     +(state.prices_old?"\n"+state.prices_old+(state.prices_old===1?" prezzo non si aggiorna":" prezzi non si aggiornano")+" da oltre 3 giorni (manuale o non trovato).":"");
@@ -355,7 +403,7 @@ function positionsTable(pf){
     const plCell = h.no_pl ? `<td class="dim">—<br><span style="font-size:11px">fuori dal P&L</span></td>` : `<td class="${plc}">${s}€${money(pl)}<br><span style="font-size:11px">${s}${plp.toFixed(1)}%</span></td>`;
     return `<tr>
       <td><span class="nm">${h.name}</span><span class="badge">${h.detail||''}</span>${h.no_pl?'<span class="badge">azioni aziendali</span>':''}<br><span class="isin">${h.isin}</span></td>
-      <td>${(+h.qty).toLocaleString('it-IT',{maximumFractionDigits:4})}</td>
+      <td>${qtyF(h.qty,4)}</td>
       <td>${h.no_pl?'<span class="dim">—</span>':money2(h.avg_price)}</td>
       <td>${money2(h.market_price)}${h.currency==='USD'?' <span class="dim">$</span>':''}</td>
       <td>€${money(valEur(h))}</td>
@@ -435,17 +483,17 @@ function movimentiHTML(){
 // ============================ ANALISI ALLOCAZIONE ============================
 // Tipologia di ogni strumento per ISIN. Per i fondi misti la ripartizione viene dai documenti in dettaglio_fondi/ (dati al 30/06/2026).
 const AC = {
-  glob:  {label:'Azionario globale',            color:'#38bdf8'},
-  them:  {label:'Azionario tematico',           color:'#22d3ee'},
-  single:{label:'Azioni singole',               color:'#a78bfa'},
-  em:    {label:'Azionario emergenti / Cina',   color:'#fb923c'},
-  lux:   {label:'EssilorLuxottica (azioni aziendali)', color:'#f472b6'},
-  bond:  {label:'Obbligazionario',              color:'#34d399'},
-  liq:   {label:'Monetario',                    color:'#84cc16'},
-  comm:  {label:'Materie prime',                color:'#e3b23c'},
-  crypto:{label:'Crypto',                       color:'#f87171'},
-  other: {label:'Altro',                        color:'#64748b'},
-  pens:  {label:'Fondi pensione',               color:'#94a3b8'},
+  glob:  {label:'Azionario globale',            color:'#007aff'},
+  them:  {label:'Azionario tematico',           color:'#32ade6'},
+  single:{label:'Azioni singole',               color:'#af52de'},
+  em:    {label:'Azionario emergenti / Cina',   color:'#ff6b35'},
+  lux:   {label:'EssilorLuxottica (azioni aziendali)', color:'#ff2d55'},
+  bond:  {label:'Obbligazionario',              color:'#34c759'},
+  liq:   {label:'Monetario',                    color:'#8ac926'},
+  comm:  {label:'Materie prime',                color:'#ff9f0a'},
+  crypto:{label:'Crypto',                       color:'#ff3b30'},
+  other: {label:'Altro',                        color:'#8e8e93'},
+  pens:  {label:'Fondi pensione',               color:'#aeaeb2'},
 };
 const ASSET_CLASS = {
   'LU1681043599':{glob:1}, 'IE00B4L5Y983':{glob:1}, 'LU0552385295':{glob:1}, 'LU1529957257':{glob:1},
@@ -463,7 +511,7 @@ const classMix = h => isPensionHolding(h) ? {pens:1} : (ASSET_CLASS[h.isin] || {
 const isExtraHolding = h => { const m=classMix(h); return !!(m.pens||m.lux); };
 // Area geografica. Titoli singoli (azioni, BTP): sede dell'emittente dal prefisso ISIN. ETF e fondi: composizione dichiarata.
 // Aree: Italia, Europa (ex Italia), USA, Giappone, Cina, Altri emergenti, Altri sviluppati, Non geografico.
-const GEO_COLOR = {'Italia':'#34d399','Europa':'#38bdf8','USA':'#e3b23c','Giappone':'#a78bfa','Cina':'#f87171','Altri emergenti':'#fb923c','Altri sviluppati':'#22d3ee','Non geografico':'#8a93a6','Fondi pensione (non scomposti)':'#94a3b8'};
+const GEO_COLOR = {'Italia':'#34c759','Europa':'#007aff','USA':'#ff9f0a','Giappone':'#af52de','Cina':'#ff3b30','Altri emergenti':'#ff6b35','Altri sviluppati':'#32ade6','Non geografico':'#6e6e73','Fondi pensione (non scomposti)':'#aeaeb2'};
 const GEO_DB = {'USA':'USA','Europa':'Europa','Italia':'Italia','Giappone':'Giappone','Cina/Asia':'Cina','Paesi Emergenti':'Altri emergenti','Altro':'Altri sviluppati','Commodity':'Non geografico','Crypto':'Non geografico','Globale':'Altri sviluppati'};
 // MSCI World al 31/08/2026 (justETF): USA 70,3 · Giappone 5,8 · Regno Unito 3,7 · Canada 3,4 · "altro" 16,8.
 // STIMA: dell'"altro" assegno ~12 a Europa (Francia, Svizzera, Germania, Paesi Bassi...) e ~4,8 ad altri sviluppati (Australia, Hong Kong...).
@@ -525,7 +573,7 @@ const LOOK = {
 };
 const CANON = {'US67066G1040':'NVIDIA','NL0010273215':'ASML','US0846707026':'Berkshire Hathaway','FR0000121667':'EssilorLuxottica','US70450Y1038':'PayPal','IT0004176001':'Prysmian','IT0001031084':'Banca Generali'};
 
-const eur0 = n => '€'+Math.round(n||0).toLocaleString('it-IT',{useGrouping:'always'});
+const eur0 = n => '€'+(PRIV?MASK:Math.round(n||0).toLocaleString('it-IT',{useGrouping:'always'}));
 const pct1 = x => x.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
 const anaPens = pens => state.showExtra ? (pens||[]).reduce((s,x)=>s+(+x.value||0),0) : 0;
 
@@ -574,15 +622,15 @@ function analysisHTML(holdings, pens){
   const eqKeys=['glob','them','single','em','lux'], rows=[];
   eqKeys.forEach(k=>{ if(ca[k]>0.5) rows.push({label:AC[k].label,val:ca[k],color:AC[k].color,dot:true}); });
   const eq=eqKeys.reduce((s,k)=>s+(ca[k]||0),0);
-  if(eq>0.5) rows.push({label:'Azionario totale',val:eq,color:'#8a93a6',sub:true});
+  if(eq>0.5) rows.push({label:'Azionario totale',val:eq,color:'#6e6e73',sub:true});
   ['bond','liq','comm','crypto','other','pens'].forEach(k=>{ if(ca[k]>0.5) rows.push({label:AC[k].label,val:ca[k],color:AC[k].color,dot:true}); });
 
   // 2) area geografica
   const ga=geoAggNew(hs,pens), grows=Object.entries(ga).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1])
-    .map(([k,v])=>({label:k,val:v,color:GEO_COLOR[k]||'#64748b',dot:true}));
+    .map(([k,v])=>({label:k,val:v,color:GEO_COLOR[k]||'#8e8e93',dot:true}));
 
   // 3) primi 10 titoli (look-through)
-  const trows=topLook(hs).map(([n,v],i)=>({label:`${i+1}. ${n}`,val:v,color:'#e3b23c'}));
+  const trows=topLook(hs).map(([n,v],i)=>({label:`${i+1}. ${n}`,val:v,color:'#ff9f0a'}));
 
   return `<div class="ana-bar">
       <label class="ana-flag"><input type="checkbox" id="ana-extra"${state.showExtra?' checked':''}> Includi EssilorLuxottica e fondi pensione</label>
@@ -607,11 +655,11 @@ function drawStorico(){
     const s=state.storico[pf];
     charts['st-'+pf]=new Chart(el,{type:'line',data:{labels:s.map(x=>x.snap_date),
       datasets:[
-        {label:'Totale',data:s.map(x=>x.total),borderColor:'#e3b23c',backgroundColor:'transparent',tension:.3},
-        {label:'Investito',data:s.map(x=>x.invested),borderColor:'#38bdf8',backgroundColor:'transparent',tension:.3},
-        {label:'Cassa',data:s.map(x=>x.cash),borderColor:'#8a93a6',backgroundColor:'transparent',tension:.3},
-      ]},options:{plugins:{legend:{labels:{color:'#8a93a6',font:{family:'DM Mono',size:11}}}},
-      scales:{x:{ticks:{color:'#8a93a6',font:{size:10}},grid:{color:'#262b38'}},y:{ticks:{color:'#8a93a6',font:{size:10},callback:v=>'€'+money(v)},grid:{color:'#262b38'}}}}});
+        {label:'Totale',data:s.map(x=>x.total),borderColor:'#ff9f0a',backgroundColor:'transparent',tension:.3},
+        {label:'Investito',data:s.map(x=>x.invested),borderColor:'#007aff',backgroundColor:'transparent',tension:.3},
+        {label:'Cassa',data:s.map(x=>x.cash),borderColor:'#6e6e73',backgroundColor:'transparent',tension:.3},
+      ]},options:{plugins:{legend:{labels:{color:'#6e6e73',font:{size:11}}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': €'+money(c.raw)}}},
+      scales:{x:{ticks:{color:'#6e6e73',font:{size:10}},grid:{color:'#ececf0'}},y:{ticks:{color:'#6e6e73',font:{size:10},callback:v=>'€'+money(v)},grid:{color:'#ececf0'}}}}});
   });
 }
 
@@ -656,7 +704,7 @@ function modalEdit(pf,isin){
     <div id="mbody"></div>
     <label class="rg-chk" style="margin-top:14px"><input type="checkbox" id="f-nopl"${h.no_pl?' checked':''}> Azioni aziendali / ricevute senza costo: escludi dal P&L</label>
     <div class="foot"><button class="cancel" data-close>Annulla</button><button class="save" id="msave">Salva</button></div>`;
-  const buyBody=`<div class="dim mono" style="font-size:12px;margin:8px 0">Attuale: ${(+h.qty).toLocaleString('it-IT')} @ €${money2(h.avg_price)}</div>
+  const buyBody=`<div class="dim mono" style="font-size:12px;margin:8px 0">Attuale: ${qtyF(h.qty)} @ €${money2(h.avg_price)}</div>
     <label>Quantità acquistata</label><input id="f-nq" type="number" step="any" placeholder="0">
     <label>Prezzo di acquisto (${h.currency})</label><input id="f-np" type="number" step="any" placeholder="0">`;
   const directBody=`<div class="row2"><div><label>Quantità</label><input id="f-q" type="number" step="any" value="${h.qty}"></div>
@@ -808,7 +856,7 @@ async function doSnapshot(pf){
 // ============================ GO ============================
 /* ===================== MODULO SPESE ===================== */
 const spState={tab:'Maicol',per:'12m',gran:'annuale',drill:null,rows:null,charts:{},impRecs:[]};
-const spEur=n=>'€'+Math.round(n).toLocaleString('it-IT');
+const spEur=n=>'€'+(PRIV?MASK:Math.round(n).toLocaleString('it-IT'));
 const spSum=a=>a.reduce((x,y)=>x+y,0);
 async function spLoad(){let all=[],from=0,pg=1000;while(true){const{data,error}=await sb.from('expenses').select('*').order('id',{ascending:true}).range(from,from+pg-1);if(error){alert('Spese: '+error.message);break;}all=all.concat(data||[]);if(!data||data.length<pg)break;from+=pg;}return all;}
 function spSubset(){return spState.tab==='Combinato'?spState.rows:spState.rows.filter(r=>r.persona===spState.tab);}
@@ -827,7 +875,7 @@ function speseUI(){
   <div class="sp-seg" style="margin-bottom:12px">${psel}</div>
   <div class="kpis" id="sp-kpis"></div>
   <div class="sp-bar">
-    <div class="sp-leg"><span><i style="background:var(--pos)"></i>Entrate</span><span><i style="background:var(--neg)"></i>Uscite</span><span><i style="background:var(--accent)"></i>Risparmio</span><span><i style="background:#a78bfa"></i>Investimenti</span></div>
+    <div class="sp-leg"><span><i style="background:var(--pos)"></i>Entrate</span><span><i style="background:var(--neg)"></i>Uscite</span><span><i style="background:#ff9f0a"></i>Risparmio</span><span><i style="background:#af52de"></i>Investimenti</span></div>
     <div class="sp-seg"><button class="seg-b ${spState.gran==='annuale'?'on':''}" data-sp-gran="annuale">Annuale</button><button class="seg-b ${spState.gran==='mensile'?'on':''}" data-sp-gran="mensile">Mensile</button></div>
   </div>
   <div class="sp-grid">
@@ -853,17 +901,17 @@ function spDraw(){
   if(spState.per==='12m'&&A.months.length>=13){const pv=spTotFor(A,A.months.slice(-24,-12));dU=spDelta(cur.u,pv.u,true);dR=spDelta(risp,pv.e-pv.u,false);}
   else if(spState.per==='anno'&&A.years.length>=2){const py=A.years[A.years.length-2];const pm=A.months.filter(m=>m.startsWith(py)).slice(0,ms.length);const pv=spTotFor(A,pm);dU=spDelta(cur.u,pv.u,true);dR=spDelta(risp,pv.e-pv.u,false);}
   const rc=risp>=0?'var(--pos)':'var(--neg)';
-  $("#sp-kpis").innerHTML=`<div class="kpi"><div class="lab">Entrate</div><div class="val">${spEur(cur.e)}</div></div><div class="kpi"><div class="lab">Uscite</div><div class="val">${spEur(cur.u)}</div><div class="sub">${dU}</div></div><div class="kpi"><div class="lab">Risparmio</div><div class="val" style="color:${rc}">${spEur(risp)}</div><div class="sub">${dR}</div></div><div class="kpi"><div class="lab">Tasso di risparmio</div><div class="val" style="color:${rc}">${tasso}%</div></div><div class="kpi"><div class="lab">Investito</div><div class="val" style="color:#a78bfa">${spEur(cur.i)}</div></div>`;
+  $("#sp-kpis").innerHTML=`<div class="kpi"><div class="lab">Entrate</div><div class="val">${spEur(cur.e)}</div></div><div class="kpi"><div class="lab">Uscite</div><div class="val">${spEur(cur.u)}</div><div class="sub">${dU}</div></div><div class="kpi"><div class="lab">Risparmio</div><div class="val" style="color:${rc}">${spEur(risp)}</div><div class="sub">${dR}</div></div><div class="kpi"><div class="lab">Tasso di risparmio</div><div class="val" style="color:${rc}">${tasso}%</div></div><div class="kpi"><div class="lab">Investito</div><div class="val" style="color:#af52de">${spEur(cur.i)}</div></div>`;
   const ab=$("#sp-altro");ab.textContent='Altro '+Math.round(A.altroPct)+'%';ab.style.color=A.altroPct>25?'var(--neg)':'var(--dim)';
   const annual=spState.gran==='annuale',lab=annual?A.years:A.months;
   const inc=lab.map(k=>annual?(A.yearly.entrate[k]||0):A.monthly[k].e),out=lab.map(k=>annual?(A.yearly.uscite[k]||0):A.monthly[k].u),invd=lab.map(k=>annual?(A.yearly.investimenti[k]||0):A.monthly[k].i),rsp=inc.map((v,i)=>v-out[i]);
   $("#sp-s1").textContent=(annual?'annuale':'mensile')+' · con trend di risparmio';
-  const gopt=(onClick)=>({responsive:true,maintainAspectRatio:false,onClick,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.dataset.label?c.dataset.label+': ':'')+spEur(c.raw)}}},scales:{x:{ticks:{color:'#8a93a6',font:{size:10}},grid:{color:'#262b38'}},y:{ticks:{color:'#8a93a6',font:{size:10},callback:v=>(v/1000)+'k'},grid:{color:'#262b38'}}}});
-  spState.charts.c1=new Chart(document.getElementById('sp-c1'),{data:{labels:lab,datasets:[{type:'bar',label:'Entrate',data:inc,backgroundColor:'#34d399',borderRadius:3},{type:'bar',label:'Uscite',data:out,backgroundColor:'#f87171',borderRadius:3},{type:'line',label:'Risparmio',data:rsp,borderColor:'#e3b23c',backgroundColor:'transparent',borderWidth:2,tension:.3,pointRadius:annual?4:2}]},options:gopt((e,els)=>{if(els.length)spSetDrill('periodo',lab[els[0].index]);})});
-  spState.charts.c2=new Chart(document.getElementById('sp-c2'),{type:'bar',data:{labels:lab,datasets:[{label:'Investimenti',data:invd,backgroundColor:'#a78bfa',borderRadius:3}]},options:gopt((e,els)=>{if(els.length)spSetDrill('periodo-inv',lab[els[0].index]);})});
+  const gopt=(onClick)=>({responsive:true,maintainAspectRatio:false,onClick,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.dataset.label?c.dataset.label+': ':'')+spEur(c.raw)}}},scales:{x:{ticks:{color:'#6e6e73',font:{size:10}},grid:{color:'#ececf0'}},y:{ticks:{color:'#6e6e73',font:{size:10},callback:v=>PRIV?'':(v/1000)+'k'},grid:{color:'#ececf0'}}}});
+  spState.charts.c1=new Chart(document.getElementById('sp-c1'),{data:{labels:lab,datasets:[{type:'bar',label:'Entrate',data:inc,backgroundColor:'#34c759',borderRadius:3},{type:'bar',label:'Uscite',data:out,backgroundColor:'#ff3b30',borderRadius:3},{type:'line',label:'Risparmio',data:rsp,borderColor:'#ff9f0a',backgroundColor:'transparent',borderWidth:2,tension:.3,pointRadius:annual?4:2}]},options:gopt((e,els)=>{if(els.length)spSetDrill('periodo',lab[els[0].index]);})});
+  spState.charts.c2=new Chart(document.getElementById('sp-c2'),{type:'bar',data:{labels:lab,datasets:[{label:'Investimenti',data:invd,backgroundColor:'#af52de',borderRadius:3}]},options:gopt((e,els)=>{if(els.length)spSetDrill('periodo-inv',lab[els[0].index]);})});
   const ce=Object.entries(A.cat).sort((a,b)=>b[1]-a[1]);
-  spState.charts.c3=new Chart(document.getElementById('sp-c3'),{type:'doughnut',data:{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:['#e3b23c','#38bdf8','#34d399','#f87171','#a78bfa','#fb923c','#22d3ee','#94a3b8','#f472b6','#84cc16','#e879f9','#facc15'],borderColor:'#161922',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',onClick:(e,els)=>{if(els.length)spSetDrill('categoria',ce[els[0].index][0]);},plugins:{legend:{position:'right',labels:{color:'#8a93a6',font:{size:10,family:'DM Mono'},boxWidth:10,padding:5}},tooltip:{callbacks:{label:c=>' '+c.label+': '+spEur(c.raw)}}}}});
-  spState.charts.c4=new Chart(document.getElementById('sp-c4'),{type:'bar',data:{labels:A.years,datasets:[{label:'Entrate',data:A.years.map(y=>Math.round((A.yearly.entrate[y]||0)/A.mesi_anno[y])),backgroundColor:'#34d399',borderRadius:3},{label:'Uscite',data:A.years.map(y=>Math.round((A.yearly.uscite[y]||0)/A.mesi_anno[y])),backgroundColor:'#f87171',borderRadius:3},{label:'Investimenti',data:A.years.map(y=>Math.round((A.yearly.investimenti[y]||0)/A.mesi_anno[y])),backgroundColor:'#a78bfa',borderRadius:3}]},options:gopt()});
+  spState.charts.c3=new Chart(document.getElementById('sp-c3'),{type:'doughnut',data:{labels:ce.map(x=>x[0]),datasets:[{data:ce.map(x=>x[1]),backgroundColor:['#ff9f0a','#007aff','#34c759','#ff3b30','#af52de','#ff6b35','#32ade6','#aeaeb2','#ff2d55','#8ac926','#bf5af2','#ffcc00'],borderColor:'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',onClick:(e,els)=>{if(els.length)spSetDrill('categoria',ce[els[0].index][0]);},plugins:{legend:{position:'right',labels:{color:'#6e6e73',font:{size:10},boxWidth:10,padding:5}},tooltip:{callbacks:{label:c=>' '+c.label+': '+spEur(c.raw)}}}}});
+  spState.charts.c4=new Chart(document.getElementById('sp-c4'),{type:'bar',data:{labels:A.years,datasets:[{label:'Entrate',data:A.years.map(y=>Math.round((A.yearly.entrate[y]||0)/A.mesi_anno[y])),backgroundColor:'#34c759',borderRadius:3},{label:'Uscite',data:A.years.map(y=>Math.round((A.yearly.uscite[y]||0)/A.mesi_anno[y])),backgroundColor:'#ff3b30',borderRadius:3},{label:'Investimenti',data:A.years.map(y=>Math.round((A.yearly.investimenti[y]||0)/A.mesi_anno[y])),backgroundColor:'#af52de',borderRadius:3}]},options:gopt()});
   $("#sp-note").innerHTML='Mesi presenti ('+spState.tab+'): '+A.years.map(y=>y+': '+A.mesi_anno[y]).join(' · ')+'. La media divide per questi, non per 12.';
   spDrillRender();
 }
@@ -1282,11 +1330,11 @@ async function spFetchFx(curs){try{const r=await fetch('https://api.frankfurter.
 function spEnsureOverlay(){
   if(document.getElementById('sp-ov'))return;
   const d=document.createElement('div');d.className='overlay';d.id='sp-ov';
-  d.innerHTML='<div class="modal" style="width:780px"><h2 style="font-family:Syne;font-size:18px;margin-bottom:8px">Importa estratti conto</h2>'
+  d.innerHTML='<div class="modal" style="width:780px"><h2 style="margin-bottom:8px">Importa estratti conto</h2>'
    +'<p style="font-size:13px;color:var(--dim);margin-bottom:14px">Carica i file scaricati dalla banca così come sono: <b>Revolut</b> (.csv), <b>Credem</b> (.xlsx), <b>Intesa</b> di Martina (.xlsx), <b>Carta Ego</b> (.csv o .xlsx). Riconosco il formato da solo e salto i movimenti già presenti.</p>'
    +'<input type="file" id="sp-file" accept=".csv,.xlsx,.xls" multiple>'
    +'<div id="sp-prev" style="margin-top:12px;font-size:13px;color:var(--dim)"></div>'
-   +'<div class="foot" style="display:flex;gap:10px;margin-top:18px"><button id="sp-cancel" style="flex:1;padding:11px;border-radius:9px;font-weight:600;background:var(--panel2);color:var(--txt);border:1px solid var(--line);cursor:pointer">Chiudi</button><button id="sp-savebtn" disabled style="flex:1;padding:11px;border-radius:9px;font-weight:600;border:none;background:var(--accent);color:#1a1200;cursor:pointer">Salva</button></div></div>';
+   +'<div class="foot"><button class="cancel" id="sp-cancel">Chiudi</button><button class="save" id="sp-savebtn" disabled>Salva</button></div></div>';
   document.body.appendChild(d);
   d.onclick=e=>{if(e.target===d)d.classList.remove('on');};
   document.getElementById('sp-cancel').onclick=()=>d.classList.remove('on');
@@ -1473,7 +1521,7 @@ function rgDrawList(){
     <div class="kpi"><div class="lab">Entrate</div><div class="val">${spEur(ent)}</div></div>
     <div class="kpi"><div class="lab">Uscite</div><div class="val">${spEur(usc)}</div></div>
     <div class="kpi"><div class="lab">Risparmio</div><div class="val" style="color:${risp>=0?'var(--pos)':'var(--neg)'}">${spEur(risp)}</div></div>
-    <div class="kpi"><div class="lab">Investito</div><div class="val" style="color:#a78bfa">${spEur(inv)}</div></div>`;
+    <div class="kpi"><div class="lab">Investito</div><div class="val" style="color:#af52de">${spEur(inv)}</div></div>`;
   const shown=rows.slice(0,s.limit);
   const body=shown.map(r=>{
     const flow=RG_FLOW.includes(r.tipo),eur=+r.importo_eur,d=rgClean(r.descrizione);
