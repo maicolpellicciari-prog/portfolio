@@ -1,0 +1,42 @@
+name: Fotografia dei mercati
+
+# Lun-ven alle 07:00 UTC scarica gli indici (azionari, VIX, oro, Bitcoin, cambio, tassi, petrolio) da Yahoo Finance
+# e li salva nel database (settings, chiave 'market_snapshot'). Li legge la routine che prepara il riassunto
+# giornaliero delle notizie alle 07:30 UTC, perche' dal cloud di Claude yfinance non si puo' installare.
+# Usa gli stessi secrets di "Aggiorna prezzi portafoglio" (SUPABASE_URL, SUPABASE_SERVICE_KEY).
+on:
+  schedule:
+    - cron: '0 7 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Controlla i secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
+            echo "::error::Mancano i secrets SUPABASE_URL e/o SUPABASE_SERVICE_KEY."
+            exit 1
+          fi
+
+      - name: Salva la fotografia dei mercati
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python market_snapshot.py
