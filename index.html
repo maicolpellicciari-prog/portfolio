@@ -209,6 +209,7 @@ tr:hover td{background:#fafafc}
 .nz-chip.pos{background:rgba(30,142,62,.12);color:var(--pos)}.nz-chip.neg{background:rgba(217,48,37,.1);color:var(--neg)}.nz-chip.mix{background:rgba(180,83,9,.12);color:#b45309}
 .nz-theme ul{padding-left:18px;font-size:13px;color:#3a3a3c;margin-bottom:8px}.nz-theme li{margin:3px 0}
 .nz-why{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:8px}
+.nz-lnk{font-size:12.5px;color:var(--accent);text-decoration:none}.nz-lnk:hover{text-decoration:underline}
 .nz-src{display:inline-block;font-size:10.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:0 6px;margin-left:4px;vertical-align:1px}
 .nz-tw{overflow:auto;border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow);margin-bottom:16px}
 .nz-tw td{white-space:normal;text-align:left;vertical-align:top}.nz-tw th{text-align:left}
@@ -1530,7 +1531,9 @@ const nzState={rows:null,sel:null};
 const nzE=s=>spEsc(s);
 const nzW=s=>'<span class="nz-w">'+nzE(s)+'</span>';
 function nzDir(d){return d==='up'?'nz-up':(d==='down'?'nz-dn':'');}
-function nzSrc(f){return f&&f.src?'<span class="nz-src">'+nzE(f.src)+'</span>':'';}
+const nzUrl=u=>/^https:\/\//i.test(u||'')?nzE(u):'';   // il payload arriva dal database: accetto solo link https
+function nzSrc(f){if(!f||!f.src)return '';const u=nzUrl(f.url);return u?'<a class="nz-src" href="'+u+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">'+nzE(f.src)+' \u2197</a>':'<span class="nz-src">'+nzE(f.src)+'</span>';}
+const nzLinks=l=>(l||[]).map(x=>nzUrl(x.url)?'<div style="margin-top:4px"><a class="nz-lnk" href="'+nzUrl(x.url)+'" target="_blank" rel="noopener noreferrer">'+nzE(x.title)+(x.source?' <span class="mute" style="color:var(--dim)">\u00b7 '+nzE(x.source)+'</span>':'')+'</a></div>':'').join('');
 function nzBrief(p,row){
   const h=[];
   h.push('<div class="nz-card"><h3>In 30 secondi</h3><ul class="nz-sum">'+(p.summary||[]).map(x=>'<li><span class="nz-tag '+nzE(x.tone||'')+'">'+nzE(x.tag)+'</span><span>'+nzE(x.text)+'</span></li>').join('')+'</ul></div>');
@@ -1548,7 +1551,7 @@ function nzBrief(p,row){
     }).join('')+'</div>');
   }
   if((p.watch||[]).length)h.push('<div class="nz-sec">TITOLI SOTTO OSSERVAZIONE</div><div class="nz-tw"><table><thead><tr><th>Posizione</th><th>Peso</th><th>Novit\u00e0 nelle fonti</th><th>Lettura</th></tr></thead><tbody>'
-    +p.watch.map(w=>'<tr><td class="nm">'+nzE(w.name)+'</td><td>'+nzW(w.weight||'')+'</td><td>'+nzE(w.news)+'</td><td>'+nzE(w.reading)+'</td></tr>').join('')+'</tbody></table></div>');
+    +p.watch.map(w=>'<tr><td class="nm">'+nzE(w.name)+'</td><td>'+nzW(w.weight||'')+'</td><td>'+nzE(w.news)+nzLinks(w.links)+'</td><td>'+nzE(w.reading)+'</td></tr>').join('')+'</tbody></table></div>');
   const cal=(p.calendar||[]).length?'<div class="nz-card"><h3>Calendario</h3><div class="nz-cal">'+p.calendar.map(c=>'<div class="when">'+nzE(c.when)+'</div><div>'+nzE(c.what)+'</div>').join('')+'</div></div>':'';
   const so=p.sources||{};
   const src=(so.used||so.missing||so.notes)?'<div class="nz-card"><h3>Fonti e cosa manca</h3><div style="font-size:13px">'

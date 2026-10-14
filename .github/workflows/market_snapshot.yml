@@ -1,8 +1,10 @@
-name: Fotografia dei mercati
+name: Fotografia dei mercati e notizie
 
 # Lun-ven alle 07:00 UTC scarica gli indici (azionari, VIX, oro, Bitcoin, cambio, tassi, petrolio) da Yahoo Finance
 # e li salva nel database (settings, chiave 'market_snapshot'). Li legge la routine che prepara il riassunto
 # giornaliero delle notizie alle 07:30 UTC, perche' dal cloud di Claude yfinance non si puo' installare.
+# Subito dopo cerca su Google News i titoli recenti sulle societa' in portafoglio (lette dal database) e li salva
+# in settings, chiave 'company_news' (company_news.py).
 # Usa gli stessi secrets di "Aggiorna prezzi portafoglio" (SUPABASE_URL, SUPABASE_SERVICE_KEY).
 on:
   schedule:
@@ -40,3 +42,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python market_snapshot.py
+
+      - name: Salva le notizie sulle societa' in portafoglio
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python company_news.py
