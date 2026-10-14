@@ -22,6 +22,8 @@ TOPICS = [             # temi generali (non sono posizioni): (etichetta, ricerca
     ("BTP e spread", "BTP spread rendimento", "it"),
     ("BCE e tassi", "BCE tassi Lagarde", "it"),
     ("Borsa italiana", "Piazza Affari Ftse Mib", "it"),
+    ("CPI e inflazione USA", "US CPI inflation report", "en"),
+    ("Fed e tassi USA", "Federal Reserve interest rates", "en"),
 ]
 
 

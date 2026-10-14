@@ -1564,7 +1564,7 @@ function nzBrief(p,row){
 }
 function nzDraw(){
   const v=$("#view"),rows=nzState.rows||[];
-  if(!rows.length){v.innerHTML='<div class="nz-card"><div class="empty">Nessun riassunto ancora. La routine lo crea ogni giorno feriale alle 09:30 (ora italiana).</div></div>';return;}
+  if(!rows.length){v.innerHTML='<div class="nz-card"><div class="empty">Nessun riassunto ancora. La routine lo crea ogni mattina da martedì a sabato alle 07:00 (ora di Shanghai).</div></div>';return;}
   const row=rows.find(r=>r.brief_date===nzState.sel)||rows[0],p=row.payload||{};
   const d=new Date(row.brief_date+'T12:00:00'),gen=row.generated_at?new Date(row.generated_at):null;
   const stale=(Date.now()-new Date(rows[0].brief_date+'T12:00:00'))>4*864e5;

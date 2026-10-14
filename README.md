@@ -50,7 +50,7 @@ Chiavi usate in `settings`: `eurusd`, `last_updated`, `import_nomi` (nomi person
 | `company_news.py` | titoli Google News delle ultime 48 ore per le azioni/crypto in portafoglio e per temi italiani → `settings.company_news` |
 | `expenses_schema.sql` | schema della tabella `expenses` |
 | `.github/workflows/update_prices.yml` | prezzi, lun-ven 19:30 UTC (snapshot il venerdì) |
-| `.github/workflows/market_snapshot.yml` | indici + notizie per società, lun-ven 07:00 UTC |
+| `.github/workflows/market_snapshot.yml` | indici + notizie per società, lun-ven 22:15 UTC (06:15 a Shanghai, mar-sab) |
 | `.github/workflows/keep_supabase_alive.yml` | richiesta leggera al database, lun e gio |
 | `pubblica.command` | doppio clic: commit e push **solo** dei file ammessi, con controllo di segreti e file riservati |
 | `requirements.txt`, `.env.example` | dipendenze Python e modello delle variabili d'ambiente |
@@ -80,11 +80,11 @@ Regole da non cambiare alla leggera:
 
 ## Scheda Notizie e routine giornaliera
 
-Ogni giorno feriale una **routine cloud di Claude** (gestita su <https://claude.ai/code/routines>, `Notizie del giorno e impatto sul portafoglio`) gira alle **07:30 UTC** (09:30 italiane fino al cambio all'ora solare, poi 08:30):
+Ogni mattina (martedì-sabato a Shanghai) una **routine cloud di Claude** (gestita su <https://claude.ai/code/routines>, `Notizie del giorno e impatto sul portafoglio`) gira alle **23:00 UTC, lun-ven** (**07:00 a Shanghai, martedì-sabato**, pronto entro le 07:30; ogni riassunto copre la giornata USA appena chiusa):
 
 1. legge da Gmail le newsletter di Bloomberg, CNBC, MarketWatch e FT delle ultime ~26 ore (solo lettura);
 2. legge posizioni e prezzi da Supabase e calcola i **pesi in percentuale** (mai importi in euro nel riassunto);
-3. legge `market_snapshot` (indici) e `company_news` (titoli per società), preparati alle 07:00 UTC da GitHub Actions perché dal cloud di Claude `yfinance` non si può installare;
+3. legge `market_snapshot` (indici) e `company_news` (titoli per società), preparati alle 22:15 UTC da GitHub Actions perché dal cloud di Claude `yfinance` non si può installare;
 4. scrive un oggetto JSON in `daily_briefs` (una riga per giorno);
 5. la scheda **Notizie** dell'app lo mostra: in 30 secondi, mercati, temi con esposizione e fonti, titoli sotto osservazione con link, calendario, fonti usate e lacune.
 
@@ -122,6 +122,5 @@ Per provare la routine: <https://claude.ai/code/routines> → «Run now». Per i
 
 - Valutare un repository nuovo e privato, senza la storia delle vecchie versioni dell'app.
 - Disattivare le registrazioni in Supabase (resta il controllo `is_app_user()`).
-- Dopo il cambio all'ora solare spostare la routine di un'ora se si vuole il riassunto sempre alle 09:30 italiane.
 - Copertura notizie per fondi e ETF, e per BTP/spread con una fonte dedicata.
 - Pagine di appunti non versionate: `guida meccanismi finanziari.html`, `piano_2056.html`.
