@@ -33,3 +33,6 @@ estratti_conto/
 dettaglio_fondi/
 *.zip
 
+
+# Simulazioni locali con dati del portafoglio
+simulazione_*.html

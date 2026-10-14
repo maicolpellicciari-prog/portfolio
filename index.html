@@ -182,6 +182,44 @@ tr:hover td{background:#fafafc}
 .rg-tab td.rg-d{white-space:normal;min-width:200px;max-width:420px}
 .rg-tab tr.rg-off td{opacity:.45}
 .rg-tab .rg-cb{width:auto;cursor:pointer;accent-color:var(--accent)}
+
+/* Notizie */
+.nz-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.nz-head h2{font-size:26px;letter-spacing:-.03em;line-height:1.1}
+.nz-head .meta{font-size:12.5px;color:var(--dim);margin-top:2px}
+.nz-card{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+.nz-card>h3{font-size:16px;letter-spacing:-.01em;margin-bottom:12px}
+.nz-card>h3 small{font-weight:500;color:var(--dim);font-size:12.5px;margin-left:8px}
+.nz-sec{font-size:13px;font-weight:600;color:var(--dim);margin:24px 2px 10px}
+.nz-sum{list-style:none}
+.nz-sum li{display:grid;grid-template-columns:84px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);align-items:start}
+.nz-sum li:last-child{border-bottom:none}
+.nz-tag{justify-self:start;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;margin-top:1px}
+.nz-tag.red{background:rgba(217,48,37,.1);color:var(--neg)}.nz-tag.green{background:rgba(30,142,62,.12);color:var(--pos)}.nz-tag.amber{background:rgba(180,83,9,.12);color:#b45309}
+.nz-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.nz-tile{background:var(--panel2);border-radius:var(--r-md);padding:11px 13px}
+.nz-tile .n{font-size:12px;color:var(--dim)}.nz-tile .v{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-top:1px}
+.nz-tile .c{font-size:12.5px;font-weight:600}.nz-tile .s{font-size:10.5px;color:var(--dim);margin-top:2px}
+.nz-up{color:var(--pos)}.nz-dn{color:var(--neg)}
+.nz-themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.nz-theme{background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px 20px}
+.nz-theme h4{font-size:15.5px;letter-spacing:-.01em;margin-bottom:8px}
+.nz-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.nz-chip{font-size:11.5px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--fill)}
+.nz-chip.pos{background:rgba(30,142,62,.12);color:var(--pos)}.nz-chip.neg{background:rgba(217,48,37,.1);color:var(--neg)}.nz-chip.mix{background:rgba(180,83,9,.12);color:#b45309}
+.nz-theme ul{padding-left:18px;font-size:13px;color:#3a3a3c;margin-bottom:8px}.nz-theme li{margin:3px 0}
+.nz-why{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:8px}
+.nz-src{display:inline-block;font-size:10.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:0 6px;margin-left:4px;vertical-align:1px}
+.nz-tw{overflow:auto;border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow);margin-bottom:16px}
+.nz-tw td{white-space:normal;text-align:left;vertical-align:top}.nz-tw th{text-align:left}
+.nz-cal{display:grid;grid-template-columns:96px 1fr;gap:0 14px;font-size:13px}
+.nz-cal div{padding:7px 0;border-bottom:1px solid var(--line)}.nz-cal .when{font-weight:600;color:var(--dim);font-size:12px}
+.nz-gap{background:rgba(217,48,37,.1);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:10px}
+.nz-gap.ok{background:rgba(30,142,62,.12)}
+.nz-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){.nz-two{grid-template-columns:1fr}}
+.nz-foot{font-size:11.5px;color:var(--dim);text-align:center;margin-top:26px;line-height:1.5}
+body.priv .nz-w{filter:blur(6px);user-select:none}
 </style>
 </head>
 <body>
@@ -360,7 +398,7 @@ function showPricesAge(){
 }
 // ============================ RENDER ============================
 function buildTabs(){
-  const tabs=[["maicol","Maicol"],["martina","Martina"],["combinato","Combinato"],["storico","Storico"],["movimenti","Movimenti"],["spese","Spese"],["registro","Registro"]];
+  const tabs=[["maicol","Maicol"],["martina","Martina"],["combinato","Combinato"],["storico","Storico"],["movimenti","Movimenti"],["spese","Spese"],["registro","Registro"],["notizie","Notizie"]];
   $("#tabs").innerHTML = tabs.map(([k,l])=>`<button class="tab ${k===currentTab?'active':''}" data-tab="${k}">${l}</button>`).join("");
   $("#tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{currentTab=b.dataset.tab;buildTabs();render();});
 }
@@ -377,6 +415,7 @@ function render(){
   else if(currentTab==='movimenti') v.innerHTML=movimentiHTML();
   else if(currentTab==='spese'){ renderSpese(); return; }
   else if(currentTab==='registro'){ renderRegistro(); return; }
+  else if(currentTab==='notizie'){ renderNotizie(); return; }
   if(currentTab==='maicol'){ wirePortfolio('maicol'); wireAna(); }
   if(currentTab==='martina'){ wirePortfolio('martina'); wireAna(); }
   if(currentTab==='combinato'){ wireAna(); }
@@ -1483,6 +1522,61 @@ function rgFiltered(){
     if(q&&!((r.descrizione||'')+' '+(r.categoria||'')+' '+(r.canale||'')).toLowerCase().includes(q))return false;
     return true;
   }).sort((a,b)=>(b.data||'').localeCompare(a.data||'')||b.id-a.id);
+}
+
+// ============================ NOTIZIE ============================
+// Il riassunto giornaliero lo scrive la routine cloud nella tabella daily_briefs (payload JSON); qui si legge soltanto.
+const nzState={rows:null,sel:null};
+const nzE=s=>spEsc(s);
+const nzW=s=>'<span class="nz-w">'+nzE(s)+'</span>';
+function nzDir(d){return d==='up'?'nz-up':(d==='down'?'nz-dn':'');}
+function nzSrc(f){return f&&f.src?'<span class="nz-src">'+nzE(f.src)+'</span>':'';}
+function nzBrief(p,row){
+  const h=[];
+  h.push('<div class="nz-card"><h3>In 30 secondi</h3><ul class="nz-sum">'+(p.summary||[]).map(x=>'<li><span class="nz-tag '+nzE(x.tone||'')+'">'+nzE(x.tag)+'</span><span>'+nzE(x.text)+'</span></li>').join('')+'</ul></div>');
+  if((p.markets||[]).length)h.push('<div class="nz-card"><h3>Mercati<small>'+nzE(p.markets_note||'variazione sull\'ultima seduta')+'</small></h3><div class="nz-tiles">'
+    +p.markets.map(m=>'<div class="nz-tile"><div class="n">'+nzE(m.name)+'</div><div class="v">'+nzE(m.value)+'</div><div class="c '+nzDir(m.dir)+'">'+nzE(m.change)+'</div>'+(m.note?'<div class="s">'+nzE(m.note)+'</div>':'')+'</div>').join('')+'</div></div>');
+  if((p.themes||[]).length){
+    h.push('<div class="nz-sec">COSA SIGNIFICA PER IL PORTAFOGLIO</div><div class="nz-themes">'+p.themes.map(t=>{
+      const dir=t.direction||{};
+      return '<div class="nz-theme"><h4>'+nzE(t.title)+'</h4><div class="nz-chips">'
+        +(t.exposure||[]).map(e=>'<span class="nz-chip">'+nzW(e)+'</span>').join('')
+        +(dir.label?'<span class="nz-chip '+nzE(dir.tone||'')+'">'+nzE(dir.label)+'</span>':'')
+        +(t.reliability?'<span class="nz-chip">Affidabilit\u00e0: '+nzE(t.reliability)+'</span>':'')+'</div>'
+        +'<ul>'+(t.facts||[]).map(f=>'<li>'+nzE(f.text)+nzSrc(f)+'</li>').join('')+'</ul>'
+        +(t.why?'<div class="nz-why"><b>Perch\u00e9 ti riguarda.</b> '+nzE(t.why)+'</div>':'')+'</div>';
+    }).join('')+'</div>');
+  }
+  if((p.watch||[]).length)h.push('<div class="nz-sec">TITOLI SOTTO OSSERVAZIONE</div><div class="nz-tw"><table><thead><tr><th>Posizione</th><th>Peso</th><th>Novit\u00e0 nelle fonti</th><th>Lettura</th></tr></thead><tbody>'
+    +p.watch.map(w=>'<tr><td class="nm">'+nzE(w.name)+'</td><td>'+nzW(w.weight||'')+'</td><td>'+nzE(w.news)+'</td><td>'+nzE(w.reading)+'</td></tr>').join('')+'</tbody></table></div>');
+  const cal=(p.calendar||[]).length?'<div class="nz-card"><h3>Calendario</h3><div class="nz-cal">'+p.calendar.map(c=>'<div class="when">'+nzE(c.when)+'</div><div>'+nzE(c.what)+'</div>').join('')+'</div></div>':'';
+  const so=p.sources||{};
+  const src=(so.used||so.missing||so.notes)?'<div class="nz-card"><h3>Fonti e cosa manca</h3><div style="font-size:13px">'
+    +((so.used||[]).length?'<p><b>Lette oggi:</b> '+so.used.map(nzE).join(' \u00b7 ')+'</p>':'')
+    +((so.missing||[]).length?'<div class="nz-gap"><b>Non coperto oggi:</b> '+so.missing.map(nzE).join('; ')+'</div>':'')
+    +(so.notes?'<div class="nz-gap ok">'+nzE(so.notes)+'</div>':'')+'</div></div>':'';
+  if(cal||src)h.push('<div class="nz-two">'+cal+src+'</div>');
+  h.push('<div class="nz-foot">Riassunto automatico basato su fonti giornalistiche: pu\u00f2 contenere errori e non \u00e8 una raccomandazione di investimento.<br>Gli effetti indicati sono possibili e qualitativi: non sappiamo come reagir\u00e0 il mercato.</div>');
+  return h.join('');
+}
+function nzDraw(){
+  const v=$("#view"),rows=nzState.rows||[];
+  if(!rows.length){v.innerHTML='<div class="nz-card"><div class="empty">Nessun riassunto ancora. La routine lo crea ogni giorno feriale alle 09:30 (ora italiana).</div></div>';return;}
+  const row=rows.find(r=>r.brief_date===nzState.sel)||rows[0],p=row.payload||{};
+  const d=new Date(row.brief_date+'T12:00:00'),gen=row.generated_at?new Date(row.generated_at):null;
+  const stale=(Date.now()-new Date(rows[0].brief_date+'T12:00:00'))>4*864e5;
+  v.innerHTML='<div class="nz-head"><div><h2>'+nzE(d.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'</h2><div class="meta">'
+    +(gen?'Generato il '+nzE(gen.toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})):'')+(p.emails_read?' \u00b7 '+nzE(p.emails_read)+' email lette':'')+(stale&&row===rows[0]?' \u00b7 <span style="color:#b45309">ultimo riassunto non recente: controlla la routine</span>':'')+'</div></div>'
+    +'<select id="nz-sel" style="width:auto;min-width:180px">'+rows.map(r=>'<option value="'+nzE(r.brief_date)+'"'+(r===row?' selected':'')+'>'+nzE(new Date(r.brief_date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'long'}))+'</option>').join('')+'</select></div>'
+    +nzBrief(p,row);
+  $("#nz-sel").onchange=e=>{nzState.sel=e.target.value;nzDraw();};
+}
+async function renderNotizie(){
+  $("#view").innerHTML='<div class="empty">Carico\u2026</div>';
+  const{data,error}=await sb.from('daily_briefs').select('brief_date,generated_at,payload').order('brief_date',{ascending:false}).limit(30);
+  if(error){$("#view").innerHTML='<div class="empty">Errore: '+nzE(error.message)+'</div>';return;}
+  nzState.rows=data||[];if(!nzState.sel||!nzState.rows.some(r=>r.brief_date===nzState.sel))nzState.sel=nzState.rows[0]&&nzState.rows[0].brief_date;
+  nzDraw();
 }
 async function renderRegistro(){
   const v=$("#view");
