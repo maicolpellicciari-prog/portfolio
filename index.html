@@ -98,6 +98,38 @@ header.top .brand span{color:var(--accent)}
 .al-bar i{display:block;height:100%;border-radius:3px}
 .al-note{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.45}
 
+/* Cassa e PAC */
+.cp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:12px}
+.cp-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.cp-card h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:10px;font-family:'Inter';font-weight:600}
+.cp-sub{font-size:12px;color:var(--dim);margin:-4px 0 10px;line-height:1.45}
+.cp-field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.cp-field:last-child{border-bottom:none}
+.cp-field .hint{display:block;font-size:11px;color:var(--dim);margin-top:2px}
+.cp-in{width:130px !important;text-align:right}
+.cp-in.wide{width:100% !important;text-align:left}
+.cp-row{display:grid;grid-template-columns:1fr 110px 140px 30px;gap:8px;align-items:center;margin-bottom:8px}
+.cp-row button,.cp-btn{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:7px;padding:6px 10px;font-size:12px}
+.cp-btn:hover{border-color:var(--accent);color:var(--txt)}
+.cp-kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.cp-kv:last-child{border-bottom:none}
+.cp-kv b{font-family:'DM Mono';font-weight:500;white-space:nowrap}
+.cp-kv.tot{font-weight:600;background:var(--panel2);margin:2px -8px;padding:7px 8px;border-radius:6px;border-bottom:none}
+.cp-stack{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--panel2);margin:10px 0}
+.cp-stack i{display:block;height:100%}
+.cp-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-bottom:8px}
+.cp-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.cp-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.cp-tbl th{font-size:10px;text-align:right;padding:6px 8px}
+.cp-tbl th:first-child,.cp-tbl td:first-child{text-align:left}
+.cp-tbl td{padding:6px 8px;font-family:'DM Mono';text-align:right}
+.cp-tbl tr.bad td{color:var(--neg)} .cp-tbl tr.ok td{color:var(--pos)} .cp-tbl tr.tot td{font-weight:600;background:var(--panel2)}
+.cp-note{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.5}
+.cp-warn{color:var(--neg)} .cp-ok{color:var(--pos)}
+.cp-chk{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.cp-chk input{width:auto;accent-color:var(--accent)}
+.cp-chk .v{margin-left:auto;font-family:'DM Mono'}
+
 /* Table */
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .actions button{background:var(--panel);border:none;box-shadow:0 1px 2px rgba(0,0,0,.08);color:var(--txt);padding:9px 15px;border-radius:999px;font-size:13px;font-weight:500}
@@ -399,7 +431,7 @@ function showPricesAge(){
 }
 // ============================ RENDER ============================
 function buildTabs(){
-  const tabs=[["maicol","Maicol"],["martina","Martina"],["combinato","Combinato"],["storico","Storico"],["movimenti","Movimenti"],["spese","Spese"],["registro","Registro"],["notizie","Notizie"]];
+  const tabs=[["maicol","Maicol"],["martina","Martina"],["combinato","Combinato"],["storico","Storico"],["movimenti","Movimenti"],["spese","Spese"],["cassa","Cassa e PAC"],["registro","Registro"],["notizie","Notizie"]];
   $("#tabs").innerHTML = tabs.map(([k,l])=>`<button class="tab ${k===currentTab?'active':''}" data-tab="${k}">${l}</button>`).join("");
   $("#tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{currentTab=b.dataset.tab;buildTabs();render();});
 }
@@ -415,6 +447,7 @@ function render(){
   else if(currentTab==='storico') v.innerHTML=storicoHTML();
   else if(currentTab==='movimenti') v.innerHTML=movimentiHTML();
   else if(currentTab==='spese'){ renderSpese(); return; }
+  else if(currentTab==='cassa'){ renderCassa(); return; }
   else if(currentTab==='registro'){ renderRegistro(); return; }
   else if(currentTab==='notizie'){ renderNotizie(); return; }
   if(currentTab==='maicol'){ wirePortfolio('maicol'); wireAna(); }
@@ -701,6 +734,190 @@ function drawStorico(){
       ]},options:{plugins:{legend:{labels:{color:'#6e6e73',font:{size:11}}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': €'+money(c.raw)}}},
       scales:{x:{ticks:{color:'#6e6e73',font:{size:10}},grid:{color:'#ececf0'}},y:{ticks:{color:'#6e6e73',font:{size:10},callback:v=>'€'+money(v)},grid:{color:'#ececf0'}}}}});
   });
+}
+
+// ============================ CASSA E PAC ============================
+// Parametri personali salvati in settings (chiave 'cassa_pac'); i campi restano vuoti finche' non li compili.
+const CP_TITOLI = ['PAC','Titoli','Titoli/Fondi','Piano accumulo fondi','Crypto'];   // categorie che contano come acquisto di titoli
+const cpDefault = () => ({riserva:null, obiettivi:[], crollo:40, perdita_max:null, da_investire:null, mesi_ingresso:null,
+  parcheggio:['martina|IT0005367757'], soglia:10000, pac:{maicol:null, martina:null}});
+async function cpLoad(){
+  try{
+    const {data}=await sb.from('settings').select('value').eq('key','cassa_pac').maybeSingle();
+    if(data&&data.value){ const c=JSON.parse(data.value); return {...cpDefault(), ...c, pac:{...cpDefault().pac, ...(c.pac||{})}}; }
+  }catch(e){}
+  return cpDefault();
+}
+let cpTimer=null;
+function cpSaveSoon(){
+  clearTimeout(cpTimer);
+  cpTimer=setTimeout(async()=>{
+    const {error}=await sb.from('settings').upsert({key:'cassa_pac',value:JSON.stringify(state.cp)},{onConflict:'key'});
+    setStatus(error?('Errore salvataggio: '+error.message):'Salvato');
+  },400);
+}
+async function renderCassa(){
+  const v=$("#view");
+  if(!state.cp||!spState.rows){
+    v.innerHTML='<div class="empty">Carico…</div>';
+    if(!spState.rows) spState.rows=await spLoad();
+    if(!state.cp) state.cp=await cpLoad();
+  }
+  if(currentTab!=='cassa') return;
+  v.innerHTML=cassaHTML(); cassaWire();
+}
+const cpNum = x => (x===null||x===undefined||x===''||isNaN(+x)) ? null : +x;
+const cpMonthLabel = m => new Date(m+'-01T12:00:00').toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
+
+function cassaHTML(){
+  const cp=state.cp;
+  const hs=[...state.maicol.holdings,...state.martina.holdings];
+  const cashItems=[...state.maicol.cash_items.map(c=>({...c,pf:'Maicol'})),...state.martina.cash_items.map(c=>({...c,pf:'Martina'}))];
+  const pens=[...state.maicol.pension_items,...state.martina.pension_items];
+  const t=totals(hs,cashItems,pens);
+
+  // flussi ultimi 12 mesi (stessa definizione della scheda Spese)
+  const nowM=new Date().toISOString().slice(0,7);   // il mese in corso e' incompleto: restano fuori dalle medie
+  const A=spAgg(spState.rows), ms=A.months.filter(m=>m!==nowM).slice(-12), T=spTotFor(A,ms), n=Math.max(1,ms.length);
+  const spMese=T.u/n, risparmio=T.e-T.u;
+  const inv={Maicol:{},Martina:{}}, soglia=cpNum(cp.soglia)||0; let straord=0, nStraord=0;
+  spState.rows.forEach(r=>{
+    if(r.tipo!=='investimento'||r.conta==='no'||!CP_TITOLI.includes(r.categoria)) return;
+    const m=(r.data||'').slice(0,7); if(!ms.includes(m)||!inv[r.persona]) return;
+    const a=-(+r.importo_eur||0);
+    if(soglia&&a>soglia){ straord+=a; nStraord++; return; }   // acquisto straordinario (es. BTP): fuori dal ritmo mensile
+    inv[r.persona][m]=(inv[r.persona][m]||0)+a;
+  });
+  const sumP=p=>ms.reduce((s,m)=>s+(inv[p][m]||0),0);
+  const investito=sumP('Maicol')+sumP('Martina');
+
+  // cassa strategica = cassa + bond "parcheggio" scelti
+  const parkable=hs.filter(h=>{ const m=classMix(h); return m.bond===1||m.liq===1; });
+  const parkKey=h=>h.portfolio+'|'+h.isin;
+  const parkVal=parkable.filter(h=>cp.parcheggio.includes(parkKey(h))).reduce((s,h)=>s+valEur(h),0);
+  const cassaVal=cashItems.reduce((s,c)=>s+(+c.value||0),0);
+  const strategica=cassaVal+parkVal;
+
+  // ripartizione della cassa strategica
+  const riserva=cpNum(cp.riserva), obiett=cp.obiettivi.reduce((s,o)=>s+(cpNum(o.importo)||0),0);
+  const resto=strategica-(riserva||0)-obiett;
+  const haInput=riserva!==null||obiett>0;
+  const segs=[]; if(riserva) segs.push(['Riserva',riserva,'#38bdf8']); if(obiett) segs.push(['Obiettivi',obiett,'#a78bfa']);
+  if(resto>0) segs.push(['Resto da decidere',resto,'#34d399']);
+  const segTot=segs.reduce((s,x)=>s+x[1],0)||1;
+
+  // test del crollo
+  const ca=classAgg(hs,[]);
+  const baseEq=['glob','them','single','em','lux'].reduce((s,k)=>s+(ca[k]||0),0);
+  const crollo=cpNum(cp.crollo)||40, pmax=cpNum(cp.perdita_max);
+  const steps=resto>0?[0,.25,.5,.75,1].map(f=>resto*f):[0,50000,100000,150000];
+  const maxAdd=pmax!==null?(pmax/100*t.total)/(crollo/100)-baseEq:null;
+
+  // calendario di ingresso
+  const da=cpNum(cp.da_investire), mesi=cpNum(cp.mesi_ingresso);
+  const pacAtt=investito/n;
+
+  const kv=(k,v,cls)=>`<div class="cp-kv${cls?' '+cls:''}"><span>${k}</span><b>${v}</b></div>`;
+  const inputNum=(id,val,ph)=>`<input class="cp-in" type="number" step="any" id="${id}" value="${val===null||val===undefined?'':val}" placeholder="${ph||'da compilare'}">`;
+
+  // tabella PAC mensile
+  const tgM=cpNum(cp.pac.maicol), tgT=cpNum(cp.pac.martina);
+  const stato=(v,tg)=>tg===null?'':(v>=tg?'cp-ok':(v>0?'':'cp-warn'));
+  const pacRows=ms.map(m=>{ const a=inv.Maicol[m]||0,b=inv.Martina[m]||0;
+    return `<tr><td>${cpMonthLabel(m)}</td><td class="${stato(a,tgM)}">${eur0(a)}</td><td class="${stato(b,tgT)}">${eur0(b)}</td><td>${eur0(a+b)}</td></tr>`; }).join('');
+  const sotto=(p,tg)=>tg===null?'–':ms.filter(m=>(inv[p][m]||0)<tg).length+' su '+ms.length;
+
+  return `
+  <h2 style="margin-bottom:6px">Cassa e PAC</h2>
+  <div class="cp-sub">Compila i campi: si salvano da soli. I flussi sono sugli ultimi 12 mesi completi (${ms.length?cpMonthLabel(ms[0])+' – '+cpMonthLabel(ms[ms.length-1]):'–'}); il mese in corso resta fuori.</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lab">Patrimonio</div><div class="val">${eur0(t.total)}</div></div>
+    <div class="kpi"><div class="lab">Cassa strategica</div><div class="val">${eur0(strategica)}</div><div class="sub dim">${pct1(t.total?strategica/t.total*100:0)} del patrimonio</div></div>
+    <div class="kpi"><div class="lab">Spesa media mensile</div><div class="val">${eur0(spMese)}</div></div>
+    <div class="kpi"><div class="lab">Mesi di spese coperti</div><div class="val">${PRIV?MASK:(spMese?(strategica/spMese).toFixed(0):'–')}</div></div>
+  </div>
+
+  <div class="cp-grid">
+    <div class="cp-card"><h3>Cassa strategica</h3>
+      <div class="cp-sub">Cassa più i bond usati per parcheggiarla: spunta quelli da contare come cassa.</div>
+      ${cashItems.map(c=>`<div class="cp-kv"><span>${c.pf} · ${c.name}</span><b>${eur0(c.value)}</b></div>`).join('')}
+      ${parkable.map(h=>`<label class="cp-chk"><input type="checkbox" data-park="${parkKey(h)}"${cp.parcheggio.includes(parkKey(h))?' checked':''}><span>${h.portfolio==='maicol'?'Maicol':'Martina'} · ${h.name}</span><span class="v">${eur0(valEur(h))}</span></label>`).join('')}
+      ${kv('Totale cassa strategica',eur0(strategica),'tot')}
+    </div>
+
+    <div class="cp-card"><h3>Come è divisa</h3>
+      <div class="cp-field"><label>Riserva di emergenza (€)<span class="hint">6 mesi = ${eur0(spMese*6)} · 12 mesi = ${eur0(spMese*12)}</span></label>${inputNum('cp-riserva',cp.riserva)}</div>
+      <div style="margin:10px 0 6px;font-size:12px;color:var(--dim)">Obiettivi con data (casa, figlio, altro)</div>
+      ${cp.obiettivi.map((o,i)=>`<div class="cp-row"><input class="cp-in wide" data-ob="${i}|nome" value="${(o.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome"><input class="cp-in" style="width:110px !important" type="number" step="any" data-ob="${i}|importo" value="${o.importo??''}" placeholder="€"><input class="cp-in" style="width:140px !important" type="date" data-ob="${i}|data" value="${o.data||''}"><button data-ob-del="${i}">✕</button></div>`).join('')}
+      <button class="cp-btn" id="cp-add-ob">+ Aggiungi obiettivo</button>
+      ${segs.length&&haInput?`<div class="cp-stack">${segs.map(x=>`<i style="width:${x[1]/segTot*100}%;background:${x[2]}" title="${x[0]}"></i>`).join('')}</div>
+        <div class="cp-leg">${segs.map(x=>`<span><i style="background:${x[2]}"></i>${x[0]} ${eur0(x[1])}</span>`).join('')}</div>`:''}
+      ${haInput?kv('Resto da decidere',`<span class="${resto<0?'cp-warn':'cp-ok'}">${eur0(resto)}</span>`,'tot'):kv('Resto da decidere','compila riserva e obiettivi','tot')}
+      ${resto<0&&haInput?`<div class="cp-note cp-warn">Riserva e obiettivi superano la cassa strategica di ${eur0(-resto)}.</div>`:''}
+    </div>
+  </div>
+
+  <div class="cp-grid">
+    <div class="cp-card"><h3>Flusso ultimi 12 mesi</h3>
+      ${kv('Entrate nette',eur0(T.e))}${kv('Spese',eur0(T.u))}${kv('Risparmio',eur0(risparmio),'tot')}
+      ${kv('Investito in titoli, ritmo ordinario',eur0(investito))}${nStraord?kv('Acquisti straordinari (esclusi)',eur0(straord)+' · '+nStraord):''}
+      ${kv('% del risparmio investito',PRIV?MASK:(risparmio>0?pct1(investito/risparmio*100):'–'))}
+      ${kv('Resta in cassa o bond',eur0(risparmio-investito),'tot')}
+      <div class="cp-note">Titoli = acquisti di titoli, fondi, PAC e crypto; versamenti previdenziali e riscatto non contano. I singoli acquisti sopra la soglia indicata a destra (BTP, riallocazioni) restano fuori dal ritmo mensile e sono elencati a parte.</div>
+    </div>
+
+    <div class="cp-card"><h3>PAC: versato per mese</h3>
+      <div class="cp-field"><label>Obiettivo mensile Maicol (€)</label>${inputNum('cp-pac-maicol',cp.pac.maicol)}</div>
+      <div class="cp-field"><label>Obiettivo mensile Martina (€)</label>${inputNum('cp-pac-martina',cp.pac.martina)}</div>
+      <div class="cp-field"><label>Acquisto straordinario sopra (€)<span class="hint">escluso dal ritmo mensile</span></label>${inputNum('cp-soglia',cp.soglia,'10000')}</div>
+      <table class="cp-tbl" style="margin-top:8px"><thead><tr><th>Mese</th><th>Maicol</th><th>Martina</th><th>Totale</th></tr></thead><tbody>${pacRows}
+        <tr class="tot"><td>Media/mese</td><td>${eur0(sumP('Maicol')/n)}</td><td>${eur0(sumP('Martina')/n)}</td><td>${eur0(pacAtt)}</td></tr>
+        <tr><td>Mesi sotto obiettivo</td><td>${sotto('Maicol',tgM)}</td><td>${sotto('Martina',tgT)}</td><td></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="cp-grid">
+    <div class="cp-card"><h3>Test del crollo</h3>
+      <div class="cp-sub">Quanto perderesti se l'azionario (liquido più EssilorLuxottica) crollasse, in base a quanto della cassa ci metti.</div>
+      <div class="cp-field"><label>Crollo ipotizzato (%)</label>${inputNum('cp-crollo',cp.crollo,'40')}</div>
+      <div class="cp-field"><label>Perdita massima accettata (% del patrimonio)</label>${inputNum('cp-pmax',cp.perdita_max)}</div>
+      <table class="cp-tbl" style="margin-top:8px"><thead><tr><th>${resto>0?(haInput?'Quota del resto':'Quota della cassa'):'Aggiunta'}</th><th>Azionario</th><th>Perdita</th><th>% patr.</th></tr></thead><tbody>
+      ${steps.map((a,i)=>{ const eq=baseEq+a, loss=eq*crollo/100, pc=t.total?loss/t.total*100:0; const cls=pmax===null?'':(pc<=pmax?'ok':'bad');
+        return `<tr class="${cls}"><td>${resto>0?(i*25)+'% · '+eur0(a):eur0(a)}</td><td>${eur0(eq)}</td><td>−${eur0(loss)}</td><td>${PRIV?MASK:pct1(pc)}</td></tr>`; }).join('')}</tbody></table>
+      ${maxAdd!==null?`<div class="cp-note">Con una perdita massima del ${pct1(pmax)} puoi aggiungere all'azionario al massimo ${maxAdd>=0?'<b>'+eur0(maxAdd)+'</b>':'<span class="cp-warn">niente: sei già oltre</span>'} (azionario oggi ${eur0(baseEq)}).</div>`:`<div class="cp-note">Azionario oggi: ${eur0(baseEq)} (${PRIV?MASK:pct1(t.total?baseEq/t.total*100:0)} del patrimonio). Imposta la perdita massima per vedere quanto puoi aggiungere.</div>`}
+    </div>
+
+    <div class="cp-card"><h3>Calendario di ingresso</h3>
+      <div class="cp-sub">Quanto del resto vuoi investire e in quanti mesi, con la stessa cifra ogni mese.</div>
+      <div class="cp-field"><label>Importo da investire (€)</label>${inputNum('cp-da',cp.da_investire)}</div>
+      <div class="cp-field"><label>In quanti mesi</label>${inputNum('cp-mesi',cp.mesi_ingresso)}</div>
+      ${da&&mesi?`${kv('Ogni mese',eur0(da/mesi),'tot')}
+        ${kv('PAC attuale (media)',eur0(pacAtt))}
+        ${kv('Totale al mese',eur0(pacAtt+da/mesi))}
+        ${kv('Risparmio medio al mese',eur0(risparmio/12))}
+        <div class="cp-note ${pacAtt+da/mesi>risparmio/12?'cp-warn':''}">${pacAtt+da/mesi>risparmio/12?'Supera il risparmio medio mensile: la differenza verrebbe dalla cassa. ':''}Con il figlio il risparmio dei prossimi anni potrebbe scendere.</div>
+        <table class="cp-tbl" style="margin-top:8px"><thead><tr><th>Mese</th><th>Importo</th><th>Cumulato</th></tr></thead><tbody>${Array.from({length:Math.min(Math.ceil(mesi),12)},(_,i)=>{ const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+i+1); const m=d.toISOString().slice(0,7); const imp=Math.min(da/mesi,da-da/mesi*i); return `<tr><td>${cpMonthLabel(m)}</td><td>${eur0(imp)}</td><td>${eur0(Math.min(da,da/mesi*(i+1)))}</td></tr>`; }).join('')}</tbody></table>`
+        :'<div class="cp-note">Compila importo e mesi per vedere il calendario.</div>'}
+    </div>
+  </div>
+  <div class="cp-note">Strumento di calcolo, non una raccomandazione di investimento.</div>`;
+}
+
+function cassaWire(){
+  const cp=state.cp, V=$("#view");
+  const bind=(id,set)=>{ const el=V.querySelector('#'+id); if(el) el.onchange=()=>{ set(el.value===''?null:+el.value); cpSaveSoon(); renderCassa(); }; };
+  bind('cp-riserva',x=>cp.riserva=x); bind('cp-crollo',x=>cp.crollo=x); bind('cp-pmax',x=>cp.perdita_max=x);
+  bind('cp-da',x=>cp.da_investire=x); bind('cp-mesi',x=>cp.mesi_ingresso=x);
+  bind('cp-soglia',x=>cp.soglia=x); bind('cp-pac-maicol',x=>cp.pac.maicol=x); bind('cp-pac-martina',x=>cp.pac.martina=x);
+  V.querySelectorAll('[data-park]').forEach(el=>el.onchange=()=>{
+    const k=el.dataset.park; cp.parcheggio=cp.parcheggio.filter(x=>x!==k); if(el.checked) cp.parcheggio.push(k);
+    cpSaveSoon(); renderCassa(); });
+  V.querySelectorAll('[data-ob]').forEach(el=>el.onchange=()=>{
+    const [i,f]=el.dataset.ob.split('|'); cp.obiettivi[+i][f]=(f==='importo')?(el.value===''?null:+el.value):el.value;
+    cpSaveSoon(); renderCassa(); });
+  V.querySelectorAll('[data-ob-del]').forEach(el=>el.onclick=()=>{ cp.obiettivi.splice(+el.dataset.obDel,1); cpSaveSoon(); renderCassa(); });
+  const add=V.querySelector('#cp-add-ob'); if(add) add.onclick=()=>{ cp.obiettivi.push({nome:'',importo:null,data:''}); cpSaveSoon(); renderCassa(); };
 }
 
 // ============================ WIRING ============================
