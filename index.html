@@ -1552,6 +1552,14 @@ function nzBrief(p,row){
   }
   if((p.watch||[]).length)h.push('<div class="nz-sec">TITOLI SOTTO OSSERVAZIONE</div><div class="nz-tw"><table><thead><tr><th>Posizione</th><th>Peso</th><th>Novit\u00e0 nelle fonti</th><th>Lettura</th></tr></thead><tbody>'
     +p.watch.map(w=>'<tr><td class="nm">'+nzE(w.name)+'</td><td>'+nzW(w.weight||'')+'</td><td>'+nzE(w.news)+nzLinks(w.links)+'</td><td>'+nzE(w.reading)+'</td></tr>').join('')+'</tbody></table></div>');
+  const er=p.earnings||{};
+  if((er.recent||[]).length||(er.upcoming||[]).length){
+    const rec=(er.recent||[]).length?'<div class="nz-sec">TRIMESTRALI \u00b7 ULTIME PUBBLICATE</div><div class="nz-tw"><table><thead><tr><th>Societ\u00e0</th><th>Peso*</th><th>Data</th><th>Utile per azione</th><th>Lettura</th></tr></thead><tbody>'
+      +er.recent.map(x=>'<tr><td class="nm">'+nzE(x.name)+'</td><td>'+nzW(x.weight||'')+'</td><td>'+nzE(x.date)+'</td><td>'+nzE(x.eps||'')+(x.surprise?' <b class="'+(/^[\u2212-]/.test(x.surprise)?'nz-dn':'nz-up')+'">'+nzE(x.surprise)+'</b>':'')+'</td><td>'+nzE(x.reading||'')+nzLinks(x.links)+'</td></tr>').join('')+'</tbody></table></div>':'';
+    const up=(er.upcoming||[]).length?'<div class="nz-sec">TRIMESTRALI \u00b7 PROSSIME</div><div class="nz-tw"><table><thead><tr><th>Societ\u00e0</th><th>Peso*</th><th>Data</th><th>Utile per azione atteso</th></tr></thead><tbody>'
+      +er.upcoming.map(x=>'<tr><td class="nm">'+nzE(x.name)+'</td><td>'+nzW(x.weight||'')+'</td><td>'+nzE(x.date)+'</td><td>'+nzE(x.eps_est||'n.d.')+(x.note?' <span class="mute" style="color:var(--dim)">'+nzE(x.note)+'</span>':'')+'</td></tr>').join('')+'</tbody></table></div>':'';
+    h.push(rec+up+'<div class="nz-foot" style="margin:-6px 0 14px;text-align:left">*Peso sul totale investito, comprese le societ\u00e0 dentro ETF e fondi (look-through).'+(er.note?' '+nzE(er.note):'')+'</div>');
+  }
   const cal=(p.calendar||[]).length?'<div class="nz-card"><h3>Calendario</h3><div class="nz-cal">'+p.calendar.map(c=>'<div class="when">'+nzE(c.when)+'</div><div>'+nzE(c.what)+'</div>').join('')+'</div></div>':'';
   const so=p.sources||{};
   const src=(so.used||so.missing||so.notes)?'<div class="nz-card"><h3>Fonti e cosa manca</h3><div style="font-size:13px">'

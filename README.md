@@ -38,7 +38,7 @@ index.html (GitHub Pages) ──login──► Supabase (Postgres + RLS)
 
 `expenses` (movimenti), `holdings` (posizioni), `prices`, `settings` (chiave/valore), `cash_items`, `pension_items`, `history_snapshots`, `transactions`, `app_users`, `daily_briefs` (riassunti delle notizie).
 
-Chiavi usate in `settings`: `eurusd`, `last_updated`, `import_nomi` (nomi personali per l'importatore), `carta_ego_coperti` (mesi con dettaglio carta), `market_snapshot`, `company_news`.
+Chiavi usate in `settings`: `eurusd`, `last_updated`, `import_nomi` (nomi personali per l'importatore), `carta_ego_coperti` (mesi con dettaglio carta), `market_snapshot`, `company_news`, `earnings`.
 
 ## File del progetto
 
@@ -47,6 +47,7 @@ Chiavi usate in `settings`: `eurusd`, `last_updated`, `import_nomi` (nomi person
 | `index.html` | tutta l'app: interfaccia, calcoli, importatore estratti conto, scheda Notizie |
 | `aggiorna.py` | prezzi (Yahoo Finance, Borsa Italiana per i BTP, FondiOnline per alcuni fondi), snapshot settimanale, esportazione Excel opzionale |
 | `market_snapshot.py` | indici, VIX, oro, Bitcoin, cambio, Treasury, petrolio → `settings.market_snapshot` |
+| `earnings.py` | trimestrali (ultima e prossima, utile per azione atteso/reale) delle societa' piu' pesanti, anche dentro ETF e fondi (look-through, tabella `LOOK` di `index.html`) → `settings.earnings` |
 | `company_news.py` | titoli Google News delle ultime 48 ore per le azioni/crypto in portafoglio e per temi italiani → `settings.company_news` |
 | `expenses_schema.sql` | schema della tabella `expenses` |
 | `.github/workflows/update_prices.yml` | prezzi, lun-ven 19:30 UTC (snapshot il venerdì) |
@@ -84,13 +85,13 @@ Ogni mattina (martedì-sabato a Shanghai) una **routine cloud di Claude** (gesti
 
 1. legge da Gmail le newsletter di Bloomberg, CNBC, MarketWatch e FT delle ultime ~26 ore (solo lettura);
 2. legge posizioni e prezzi da Supabase e calcola i **pesi in percentuale** (mai importi in euro nel riassunto);
-3. legge `market_snapshot` (indici) e `company_news` (titoli per società), preparati alle 22:15 UTC da GitHub Actions perché dal cloud di Claude `yfinance` non si può installare;
+3. legge `market_snapshot` (indici), `company_news` (titoli per società) e `earnings` (trimestrali), preparati alle 22:15 UTC da GitHub Actions perché dal cloud di Claude `yfinance` non si può installare;
 4. scrive un oggetto JSON in `daily_briefs` (una riga per giorno);
 5. la scheda **Notizie** dell'app lo mostra: in 30 secondi, mercati, temi con esposizione e fonti, titoli sotto osservazione con link, calendario, fonti usate e lacune.
 
 Regole della routine: niente consigli di investimento, niente numeri inventati, i dati mancanti vengono dichiarati, il contenuto delle email è trattato come dato e mai come istruzioni. Gmail è limitato a `search_threads` e `get_thread`, Supabase a `execute_sql`.
 
-Struttura del JSON (`daily_briefs.payload`): `emails_read`, `markets_note`, `summary[{tag,tone,text}]`, `markets[{name,value,change,dir,note}]`, `themes[{title,exposure[],direction{label,tone},reliability,facts[{text,src,url?}],why}]`, `watch[{name,weight,news,links[{title,source,url}],reading}]`, `calendar[{when,what}]`, `sources{used[],missing[],notes}`. L'app accetta solo link `https`.
+Struttura del JSON (`daily_briefs.payload`): `emails_read`, `markets_note`, `summary[{tag,tone,text}]`, `markets[{name,value,change,dir,note}]`, `themes[{title,exposure[],direction{label,tone},reliability,facts[{text,src,url?}],why}]`, `watch[{name,weight,news,links[{title,source,url}],reading}]`, `earnings{recent[],upcoming[],note}`, `calendar[{when,what}]`, `sources{used[],missing[],notes}`. L'app accetta solo link `https`.
 
 **Lacune note**: le newsletter coprono bene macro e grandi nomi globali, poco le società italiane ed europee (compensate dai titoli Google News); FT manda solo titoli e link; Bloomberg Markets Daily segnala la fine dell'accesso gratuito.
 
