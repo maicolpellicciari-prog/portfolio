@@ -52,6 +52,29 @@ def it(x, dec):
     return ("−" if x < 0 else "") + s
 
 
+def last_and_prev(tk):
+    """Ultimo prezzo e chiusura precedente. Le barre giornaliere di Yahoo per le borse non USA
+    a fine seduta a volte mancano fino al giorno dopo: in quel caso si usa l'ultima barra oraria."""
+    t = yf.Ticker(tk)
+    daily = t.history(period="7d")["Close"].dropna()
+    try:
+        hourly = t.history(period="5d", interval="1h")["Close"].dropna()
+    except Exception:
+        hourly = daily.iloc[0:0]
+    if len(hourly):
+        d = hourly.index[-1]
+        if daily.index[-1].date() == d.date():
+            last = float(daily.iloc[-1])           # barra giornaliera presente: e' la chiusura ufficiale
+        else:
+            last = float(hourly.iloc[-1])          # giornaliera mancante: ultimo prezzo orario
+        before = daily[[x.date() < d.date() for x in daily.index]]
+        if len(before):
+            return last, float(before.iloc[-1]), d
+    if len(daily) < 2:
+        raise ValueError("dati insufficienti")
+    return float(daily.iloc[-1]), float(daily.iloc[-2]), daily.index[-1]
+
+
 def main():
     load_env()
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
@@ -60,11 +83,7 @@ def main():
     out, errors = [], []
     for name, tk, dec, suf, kind in ITEMS:
         try:
-            h = yf.Ticker(tk).history(period="7d")["Close"].dropna()
-            if len(h) < 2:
-                raise ValueError("dati insufficienti")
-            last, prev = float(h.iloc[-1]), float(h.iloc[-2])
-            d = h.index[-1]
+            last, prev, d = last_and_prev(tk)
             if kind == "yield":
                 bp = (last - prev) * 100
                 change = ("+" if bp >= 0 else "−") + f"{abs(bp):.0f} pb"
