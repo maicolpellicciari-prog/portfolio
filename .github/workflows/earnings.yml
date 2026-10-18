@@ -1,0 +1,43 @@
+name: Trimestrali
+
+# Lun-ven alle 22:15 UTC salva le trimestrali (ultima e prossima, utile per azione atteso/reale) delle societa' piu' pesanti
+# del portafoglio, anche dentro ETF e fondi (earnings.py, chiave 'earnings' in settings).
+# Indici e notizie per societa' NON sono qui: li prepara una funzione di Supabase (market-feed) alle 22:30 UTC con pg_cron,
+# perche' le esecuzioni programmate di GitHub partono con 2-3 ore di ritardo imprevedibile.
+# Usa gli stessi secrets di "Aggiorna prezzi portafoglio" (SUPABASE_URL, SUPABASE_SERVICE_KEY).
+on:
+  schedule:
+    - cron: '15 22 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  earnings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Controlla i secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
+            echo "::error::Mancano i secrets SUPABASE_URL e/o SUPABASE_SERVICE_KEY."
+            exit 1
+          fi
+
+      - name: Salva le trimestrali delle societa' piu' pesanti
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python earnings.py

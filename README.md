@@ -46,12 +46,12 @@ Chiavi usate in `settings`: `eurusd`, `last_updated`, `import_nomi` (nomi person
 |---|---|
 | `index.html` | tutta l'app: interfaccia, calcoli, importatore estratti conto, scheda Notizie |
 | `aggiorna.py` | prezzi (Yahoo Finance, Borsa Italiana per i BTP, FondiOnline per alcuni fondi), snapshot settimanale, esportazione Excel opzionale |
-| `market_snapshot.py` | indici, VIX, oro, Bitcoin, cambio, Treasury, petrolio → `settings.market_snapshot` |
+| `supabase/functions/market-feed/index.ts` | **funzione di Supabase** chiamata da pg_cron alle 22:30 UTC lun-ven: indici, VIX, oro, Bitcoin, cambio, Treasury, petrolio → `settings.market_snapshot` e titoli Google News per le posizioni → `settings.company_news`. Il segreto di chiamata sta in `private.secrets` (non nel codice) |
+| `market_snapshot.py`, `company_news.py` | stessi compiti della funzione, da lanciare a mano in locale se serve (non sono più nel workflow) |
 | `earnings.py` | trimestrali (ultima e prossima, utile per azione atteso/reale) delle societa' piu' pesanti, anche dentro ETF e fondi (look-through, tabella `LOOK` di `index.html`) → `settings.earnings` |
-| `company_news.py` | titoli Google News delle ultime 48 ore per le azioni/crypto in portafoglio e per temi italiani → `settings.company_news` |
 | `expenses_schema.sql` | schema della tabella `expenses` |
 | `.github/workflows/update_prices.yml` | prezzi, lun-ven 19:30 UTC (snapshot il venerdì) |
-| `.github/workflows/market_snapshot.yml` | indici + notizie per società, lun-ven 22:15 UTC (06:15 a Shanghai, mar-sab) |
+| `.github/workflows/earnings.yml` | trimestrali, lun-ven 22:15 UTC (parte con 2-3 ore di ritardo: va bene, cambiano piano) |
 | `.github/workflows/keep_supabase_alive.yml` | richiesta leggera al database, lun e gio |
 | `pubblica.command` | doppio clic: commit e push **solo** dei file ammessi, con controllo di segreti e file riservati |
 | `requirements.txt`, `.env.example` | dipendenze Python e modello delle variabili d'ambiente |
@@ -85,7 +85,7 @@ Ogni mattina (martedì-sabato a Shanghai) una **routine cloud di Claude** (gesti
 
 1. legge da Gmail le newsletter di Bloomberg, CNBC, MarketWatch e FT delle ultime ~26 ore (solo lettura);
 2. legge posizioni e prezzi da Supabase e calcola i **pesi in percentuale** (mai importi in euro nel riassunto);
-3. legge `market_snapshot` (indici), `company_news` (titoli per società) e `earnings` (trimestrali), preparati alle 22:15 UTC da GitHub Actions perché dal cloud di Claude `yfinance` non si può installare;
+3. legge `market_snapshot` (indici) e `company_news` (titoli per società), preparati alle 22:30 UTC dalla funzione di Supabase `market-feed` (pg_cron), e `earnings` (trimestrali) preparata da GitHub Actions: dal cloud di Claude Yahoo e Google News sono bloccati e le esecuzioni programmate di GitHub partono con ore di ritardo, quindi la raccolta dei dati sta su Supabase;
 4. scrive un oggetto JSON in `daily_briefs` (una riga per giorno);
 5. la scheda **Notizie** dell'app lo mostra: in 30 secondi, mercati, temi con esposizione e fonti, titoli sotto osservazione con link, calendario, fonti usate e lacune.
 
@@ -102,6 +102,12 @@ Struttura del JSON (`daily_briefs.payload`): `emails_read`, `markets_note`, `sum
 - `pubblica.command` fa questi controlli da solo e si ferma se trova un file riservato o una chiave.
 - Gli script che scrivono nel database usano la chiave *secret* da variabile d'ambiente; la routine cloud scrive solo in `daily_briefs`.
 - I nomi delle società seguite dalle notizie arrivano dal database a ogni esecuzione e non sono scritti nel codice.
+
+## Supabase: funzione e pianificazione
+
+- `supabase/functions/market-feed/index.ts` è la copia di riferimento della funzione pubblicata su Supabase. Si chiama con l'intestazione `x-feed-token`, confrontata con il segreto in `private.secrets` (schema non esposto, letto solo dalla funzione tramite `get_feed_token()`).
+- Il job `market-feed` di **pg_cron** (`select * from cron.job;`) la chiama alle 22:30 UTC, lun-ven, con `pg_net`. Per provarla a mano: `select net.http_post(url := 'https://<progetto>.supabase.co/functions/v1/market-feed', headers := jsonb_build_object('x-feed-token', (select value from private.secrets where name='feed_token')), body := '{}'::jsonb);` e poi `select * from net._http_response order by id desc limit 1;`.
+- `is_app_user()` ha `search_path` fisso ed è eseguibile solo da `authenticated` e `service_role`. Resta da attivare dalle impostazioni di Auth la protezione contro le password già violate (funzione dei piani a pagamento).
 
 ## Operazioni comuni
 
